@@ -1,3 +1,16 @@
-﻿export default function NotFound() {
-  return null
+import { Link } from 'react-router-dom'
+
+export default function NotFound() {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-[var(--color-bg)] px-4 text-center">
+      <h1 className="text-3xl font-semibold text-[var(--color-text)]">404</h1>
+      <p className="text-sm text-[var(--color-muted)]">Page not found.</p>
+      <Link
+        to="/dashboard"
+        className="rounded-md bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white"
+      >
+        Go to dashboard
+      </Link>
+    </div>
+  )
 }
