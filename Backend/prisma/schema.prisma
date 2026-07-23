@@ -1,12 +1,76 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+  
+}
+
+enum Role {
+  ADMIN
+  DOCTOR
+  PATIENT
+  RECEPTIONIST
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  role      Role     @default(PATIENT)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Profile relations
+  doctor    Doctor?
+  patient   Patient?
+}
+
+model Doctor {
+  id             String        @id @default(uuid())
+  userId         String        @unique
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firstName      String
+  lastName       String
+  specialization String
+  phone          String
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  appointments   Appointment[]
+}
+
+model Patient {
+  id           String        @id @default(uuid())
+  userId       String        @unique
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firstName    String
+  lastName     String
+  dateOfBirth  DateTime
+  phone        String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  appointments Appointment[]
+}
+
+model Appointment {
+  id        String            @id @default(uuid())
+  doctorId  String
+  patientId String
+  doctor    Doctor            @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  patient   Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  date      DateTime
+  reason    String?
+  status    AppointmentStatus @default(PENDING)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
 }

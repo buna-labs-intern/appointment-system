@@ -1,0 +1,12 @@
+openapi: 3.0.0
+info:
+  title: Express Prisma API
+  version: 1.0.0
+  description: API Documentation
+paths:
+  /api/health:
+    get:
+      summary: Health check endpoint
+      responses:
+        '200':
+          description: API is healthy
