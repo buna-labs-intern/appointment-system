@@ -1,26 +1,13 @@
-const { PrismaClient } = require("@prisma/client");
-const { PrismaPg } = require("@prisma/adapter-pg");
+import { PrismaClient } from "@prisma/client";
 
-const adapter = new PrismaPg({
-    connectionString: process.env.DATABASE_URL,
-});
+export const prisma = new PrismaClient();
 
-const prisma = new PrismaClient({
-    adapter,
-});
-
-const connectDB = async () => {
-    try {
-        await prisma.$connect();
-
-        console.log("PostgreSQL database connected successfully");
-    } catch (error) {
-        console.error("Database connection failed:", error);
-        process.exit(1);
-    }
-};
-
-module.exports = {
-    prisma,
-    connectDB
+export const connectDB = async (): Promise<void> => {
+  try {
+    await prisma.$connect();
+    console.log("PostgreSQL connected");
+  } catch (error) {
+    console.error("Database connection failed:", error);
+    process.exit(1);
+  }
 };
