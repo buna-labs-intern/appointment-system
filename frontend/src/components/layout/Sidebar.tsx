@@ -1,4 +1,4 @@
-﻿import { NavLink } from 'react-router-dom'
+﻿import { NavLink } from 'react-router'
 import {
   CalendarDays,
   ClipboardList,
@@ -8,8 +8,8 @@ import {
   UserCog,
   Users,
 } from 'lucide-react'
-import useAuth from '../../hooks/useAuth'
-import { NAV_ITEMS } from '../../utils/constants'
+import useAuth from '@/hooks/useAuth'
+import { NAV_ITEMS, ROLES } from '@/utils/constants'
 
 const ICONS = {
   LayoutDashboard,
@@ -20,13 +20,23 @@ const ICONS = {
   UserCog,
 }
 
-export default function Sidebar({ open, onClose }) {
+type SidebarProps = {
+  open: boolean
+  onClose?: () => void
+}
+
+export default function Sidebar({ open, onClose }: SidebarProps) {
   const { user, logout } = useAuth()
 
   const handleLogout = () => {
     onClose?.()
     logout()
   }
+
+  const items =
+    user?.role === ROLES.ADMIN
+      ? NAV_ITEMS
+      : NAV_ITEMS.filter((item) => item.path !== '/users')
 
   return (
     <>
@@ -49,8 +59,8 @@ export default function Sidebar({ open, onClose }) {
         </div>
 
         <nav className="flex-1 space-y-1 px-3 py-4">
-          {NAV_ITEMS.map((item) => {
-            const Icon = ICONS[item.icon]
+          {items.map((item) => {
+            const Icon = ICONS[item.icon as keyof typeof ICONS]
 
             return (
               <NavLink

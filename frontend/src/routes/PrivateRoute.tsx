@@ -1,5 +1,5 @@
-import { Navigate, Outlet, useLocation } from 'react-router-dom'
-import useAuth from '../hooks/useAuth'
+import { Navigate, Outlet, useLocation } from 'react-router'
+import useAuth from '@/hooks/useAuth'
 
 export default function ProtectedRoute() {
   const { isAuthenticated, loading } = useAuth()
@@ -7,7 +7,7 @@ export default function ProtectedRoute() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center text-[var(--color-muted)]">
+      <div className="flex min-h-screen items-center justify-center text-muted-foreground">
         Loading...
       </div>
     )
