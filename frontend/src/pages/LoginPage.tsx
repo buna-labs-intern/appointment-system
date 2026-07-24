@@ -1,7 +1,9 @@
 ﻿import { useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router'
+import { useMutation } from '@tanstack/react-query'
+import { isAxiosError } from 'axios'
 import useAuth from '@/hooks/useAuth'
-import { ROLES } from '@/utils/constants'
+import { loginRequest } from '@/features/auth/authAPI'
 import LoginForm from '@/features/auth/LoginForm'
 import type { LoginFormValues } from '@/features/auth/loginSchema'
 
@@ -11,26 +13,37 @@ export default function LoginPage() {
   const location = useLocation()
   const [error, setError] = useState('')
 
+  const loginMutation = useMutation({
+    mutationFn: loginRequest,
+    onSuccess: (data) => {
+      login(data.user, data.token)
+      const redirectTo =
+        (location.state as { from?: { pathname?: string } } | null)?.from
+          ?.pathname || '/dashboard'
+      navigate(redirectTo, { replace: true })
+    },
+    onError: (err: unknown) => {
+      if (isAxiosError(err)) {
+        const message =
+          (err.response?.data as { message?: string } | undefined)?.message ||
+          'Invalid email or password'
+        setError(message)
+        return
+      }
+      setError('Unable to sign in. Please try again.')
+    },
+  })
+
   if (isAuthenticated) {
     return <Navigate to="/dashboard" replace />
   }
 
   const handleSubmit = (values: LoginFormValues) => {
     setError('')
-
-    // Temporary local login until backend auth is connected
-    login(
-      {
-        id: 1,
-        email: values.email.trim(),
-        fullName: values.role === ROLES.ADMIN ? 'NexaCare Admin' : 'Front Desk',
-        role: values.role,
-      },
-      'dev-token',
-    )
-
-    const redirectTo = location.state?.from?.pathname || '/dashboard'
-    navigate(redirectTo, { replace: true })
+    loginMutation.mutate({
+      email: values.email.trim(),
+      password: values.password,
+    })
   }
 
   return (
@@ -66,32 +79,11 @@ export default function LoginPage() {
               </div>
             </header>
 
-            <LoginForm onSubmit={handleSubmit} error={error} />
-
-            <div className="my-6 flex items-center gap-3">
-              <div className="h-px flex-1 bg-[#E3E9EF]" />
-              <span className="text-[11px] font-medium tracking-[0.12em] text-[#8D9AA6]">
-                OR CONTINUE WITH
-              </span>
-              <div className="h-px flex-1 bg-[#E3E9EF]" />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                className="flex items-center justify-center gap-2 rounded-xl border border-[#D5DEE7] bg-white py-2.5 text-sm font-medium text-[#102A44] transition hover:bg-[#F7F9FB]"
-              >
-                <GoogleIcon />
-                Google
-              </button>
-              <button
-                type="button"
-                className="flex items-center justify-center gap-2 rounded-xl border border-[#D5DEE7] bg-white py-2.5 text-sm font-medium text-[#102A44] transition hover:bg-[#F7F9FB]"
-              >
-                <MicrosoftIcon />
-                Microsoft
-              </button>
-            </div>
+            <LoginForm
+              onSubmit={handleSubmit}
+              error={error}
+              isSubmitting={loginMutation.isPending}
+            />
 
             <footer className="mt-8 space-y-2 text-center">
               <p className="text-[10px] font-semibold tracking-[0.16em] text-[#A8B4BF]">
@@ -112,27 +104,5 @@ export default function LoginPage() {
         </section>
       </div>
     </div>
-  )
-}
-
-function GoogleIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
-      <path
-        fill="#EA4335"
-        d="M12 10.2v3.6h5.1c-.2 1.2-1.5 3.6-5.1 3.6-3.1 0-5.6-2.5-5.6-5.6S8.9 6.2 12 6.2c1.8 0 3 .7 3.7 1.4l2.5-2.4C16.8 3.8 14.6 3 12 3 7 3 3 7 3 12s4 9 9 9c5.2 0 8.6-3.6 8.6-8.7 0-.6-.1-1-.2-1.5H12z"
-      />
-    </svg>
-  )
-}
-
-function MicrosoftIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
-      <path fill="#F25022" d="M3 3h8v8H3z" />
-      <path fill="#7FBA00" d="M13 3h8v8h-8z" />
-      <path fill="#00A4EF" d="M3 13h8v8H3z" />
-      <path fill="#FFB900" d="M13 13h8v8h-8z" />
-    </svg>
   )
 }
