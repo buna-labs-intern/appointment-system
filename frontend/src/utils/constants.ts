@@ -1,7 +1,9 @@
 ﻿export const ROLES = {
   ADMIN: 'ADMIN',
   RECEPTIONIST: 'RECEPTIONIST',
-}
+} as const
+
+export type Role = (typeof ROLES)[keyof typeof ROLES]
 
 export const AUTH_STORAGE_KEY = 'nexacare_auth'
 
