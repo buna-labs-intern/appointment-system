@@ -12,15 +12,15 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { ROLES } from '@/utils/constants'
 import { loginSchema, type LoginFormValues } from '@/features/auth/loginSchema'
 
 type LoginFormProps = {
   onSubmit: (values: LoginFormValues) => void
   error?: string
+  isSubmitting?: boolean
 }
 
-export default function LoginForm({ onSubmit, error }: LoginFormProps) {
+export default function LoginForm({ onSubmit, error, isSubmitting }: LoginFormProps) {
   const [showPassword, setShowPassword] = useState(false)
 
   const form = useForm<LoginFormValues>({
@@ -28,7 +28,6 @@ export default function LoginForm({ onSubmit, error }: LoginFormProps) {
     defaultValues: {
       email: '',
       password: '',
-      role: ROLES.RECEPTIONIST,
       trustDevice: false,
     },
   })
@@ -48,6 +47,7 @@ export default function LoginForm({ onSubmit, error }: LoginFormProps) {
                   autoComplete="email"
                   placeholder="admin@nexacare.com"
                   className="h-11 rounded-xl"
+                  disabled={isSubmitting}
                   {...field}
                 />
               </FormControl>
@@ -77,6 +77,7 @@ export default function LoginForm({ onSubmit, error }: LoginFormProps) {
                     autoComplete="current-password"
                     placeholder="••••••••"
                     className="h-11 rounded-xl pr-10"
+                    disabled={isSubmitting}
                     {...field}
                   />
                   <button
@@ -100,34 +101,15 @@ export default function LoginForm({ onSubmit, error }: LoginFormProps) {
 
         <FormField
           control={form.control}
-          name="role"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Role (temporary)</FormLabel>
-              <FormControl>
-                <select
-                  {...field}
-                  className="flex h-11 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <option value={ROLES.RECEPTIONIST}>Receptionist</option>
-                  <option value={ROLES.ADMIN}>Administrator</option>
-                </select>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
           name="trustDevice"
           render={({ field }) => (
             <FormItem>
               <label className="flex cursor-pointer items-center gap-2.5 text-sm text-muted-foreground">
                 <input
                   type="checkbox"
-                  checked={field.value}
+                  checked={!!field.value}
                   onChange={(e) => field.onChange(e.target.checked)}
+                  disabled={isSubmitting}
                   className="h-4 w-4 rounded border-input"
                 />
                 Trust this device for 30 days
@@ -138,8 +120,12 @@ export default function LoginForm({ onSubmit, error }: LoginFormProps) {
 
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
-        <Button type="submit" className="h-11 w-full rounded-xl bg-[#005B7F] hover:bg-[#004A68]">
-          Log In
+        <Button
+          type="submit"
+          disabled={isSubmitting}
+          className="h-11 w-full rounded-xl bg-[#005B7F] hover:bg-[#004A68]"
+        >
+          {isSubmitting ? 'Signing in…' : 'Log In'}
           <LogIn className="h-4 w-4" />
         </Button>
       </form>
