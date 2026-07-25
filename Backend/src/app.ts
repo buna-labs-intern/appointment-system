@@ -19,9 +19,12 @@ app.get("/", (req: Request, res: Response) => {
 // Routes
 
 import appointmentRoutes from "./modules/appointment/appointment.routes";
+import dashboardRoutes from "./modules/dashboard/dashboard.route";
 
 
 
+
+app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/appointments", appointmentRoutes);
 
 
