@@ -1,11 +1,13 @@
 import express, { Application, Request, Response } from "express";
 import globalErrorHandler from "./middleware/globalErrorHandler";
+import morganMiddleware from "./middleware/morganMiddleware";
 
 const app = express();
 
 // Middlewares
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(morganMiddleware);
 
 // Health Check
 app.get("/", (req: Request, res: Response) => {
