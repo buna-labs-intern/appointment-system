@@ -16,6 +16,15 @@ app.get("/", (req: Request, res: Response) => {
 });
 
 
+// Routes
+
+import appointmentRoutes from "./modules/appointment/appointment.routes";
+
+
+
+app.use("/api/appointments", appointmentRoutes);
+
+
 app.use(globalErrorHandler);
 
 export default app;
