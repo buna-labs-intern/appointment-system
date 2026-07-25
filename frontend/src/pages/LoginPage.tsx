@@ -3,7 +3,7 @@ import { Navigate, useLocation, useNavigate } from 'react-router'
 import { useMutation } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
 import useAuth from '@/hooks/useAuth'
-import { loginRequest } from '@/features/auth/authAPI'
+import { loginRequest, type LoginPayload } from '@/features/auth/authAPI'
 import LoginForm from '@/features/auth/LoginForm'
 import type { LoginFormValues } from '@/features/auth/loginSchema'
 
@@ -14,7 +14,25 @@ export default function LoginPage() {
   const [error, setError] = useState('')
 
   const loginMutation = useMutation({
-    mutationFn: loginRequest,
+    mutationFn: async (payload: LoginPayload) => {
+      try {
+        return await loginRequest(payload)
+      } catch (err) {
+        // Temporary: backend auth not ready yet — allow dashboard UI access
+        if (isAxiosError(err) && !err.response) {
+          return {
+            user: {
+              id: 1,
+              email: payload.email,
+              fullName: 'Clinic Admin',
+              role: 'ADMIN',
+            },
+            token: 'dev-token',
+          }
+        }
+        throw err
+      }
+    },
     onSuccess: (data) => {
       login(data.user, data.token)
       const redirectTo =
