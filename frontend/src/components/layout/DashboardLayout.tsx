@@ -1,25 +1,17 @@
 import { useState } from 'react'
-import { Outlet, useLocation } from 'react-router'
+import { Outlet } from 'react-router'
 import Navbar from '@/components/layout/Navbar'
 import Sidebar from '@/components/layout/Sidebar'
-import { NAV_ITEMS } from '@/utils/constants'
-
-function getPageTitle(pathname: string) {
-  const match = NAV_ITEMS.find((item) => pathname.startsWith(item.path))
-  return match?.label || 'Dashboard'
-}
 
 export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const location = useLocation()
-  const title = getPageTitle(location.pathname)
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-screen bg-[#F4F7F8]">
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <Navbar title={title} onMenuClick={() => setSidebarOpen(true)} />
+        <Navbar onMenuClick={() => setSidebarOpen(true)} />
         <main className="flex-1 p-4 lg:p-6">
           <Outlet />
         </main>
