@@ -154,7 +154,7 @@ export default function DoctorList() {
         <div>
           <h3 className="text-lg font-semibold text-foreground">Doctors</h3>
           <p className="text-sm text-muted-foreground">
-            Manage clinic doctors, specialties, and active status.
+            Administrators and receptionists can manage doctors, specialties, and active status.
           </p>
         </div>
         <Button onClick={openAdd} className="bg-[#005B7F] hover:bg-[#004A68]">
