@@ -18,6 +18,7 @@ export const router = createBrowserRouter([
     Component: LoginPage,
   },
   {
+    path: '/',
     Component: ProtectedRoute,
     children: [
       {
