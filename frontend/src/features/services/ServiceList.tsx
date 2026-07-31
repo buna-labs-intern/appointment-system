@@ -1,5 +1,5 @@
 ﻿import { useMemo, useState } from 'react'
-import { Ban, Pencil, Plus, Search } from 'lucide-react'
+import { Ban, Pencil, Plus, Search, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -88,6 +88,12 @@ export default function ServiceList() {
     setServices((prev) =>
       prev.map((s) => (s.id === service.id ? { ...s, isActive: !s.isActive } : s)),
     )
+  }
+
+  const handleDelete = (service: Service) => {
+    const confirmed = window.confirm(`Delete service "${service.name}"? This cannot be undone.`)
+    if (!confirmed) return
+    setServices((prev) => prev.filter((s) => s.id !== service.id))
   }
 
   return (
@@ -198,6 +204,15 @@ export default function ServiceList() {
                           >
                             <Ban className="h-4 w-4" />
                           </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(service)}
+                            className="rounded-md p-2 text-red-600 hover:bg-red-50"
+                            aria-label={`Delete ${service.name}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                          
                         </div>
                       </td>
                     </tr>
