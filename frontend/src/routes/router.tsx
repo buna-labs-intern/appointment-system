@@ -13,6 +13,7 @@ import UsersPage from '@/pages/UsersPage'
 import ProtectedRoute from '@/routes/PrivateRoute'
 import RoleRoute from '@/routes/RoleRoute'
 import { ROLES } from '@/utils/constants'
+import NotificationsPage from '@/pages/NotificationsPage'
 
 export const router = createBrowserRouter([
   {

@@ -58,6 +58,7 @@ export const NAV_ACCESS: NavAccess[] = [
   { path: '/reports', roles: [ROLES.ADMIN] },
   { path: '/users', roles: [ROLES.ADMIN] },
   { path: '/profile', roles: [ROLES.ADMIN, ROLES.RECEPTIONIST] },
+  { path: '/notifications', roles: [ROLES.ADMIN, ROLES.RECEPTIONIST] },
 ]
 
 export function canAccessPath(path: string, role?: string | null): boolean {
