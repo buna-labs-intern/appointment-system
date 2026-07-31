@@ -1,12 +1,17 @@
 ﻿import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { Bell, Menu, Search, Settings, User } from 'lucide-react'
+import useAuth from '@/hooks/useAuth'
+import { getInitials } from '@/features/dashboard/mockData'
 
 type NavbarProps = {
   onMenuClick?: () => void
 }
 
 export default function Navbar({ onMenuClick }: NavbarProps) {
+  const { user } = useAuth()
+  const displayName = user?.fullName || user?.email || 'User'
+  const initials = getInitials(displayName)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const settingsRef = useRef<HTMLDivElement>(null)
 
@@ -78,6 +83,18 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
               </Link>
             </div>
           ) : null}
+        </div>
+
+        <div className="flex items-center gap-2 border-l border-border pl-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#0F5C66] text-xs font-semibold text-white">
+            {initials || 'NC'}
+          </div>
+          <div className="hidden text-left sm:block">
+            <p className="text-sm font-medium leading-none text-foreground">{displayName}</p>
+            <p className="mt-1 text-[11px] uppercase tracking-wide text-muted-foreground">
+              {user?.role || '—'}
+            </p>
+          </div>
         </div>
       </div>
     </header>

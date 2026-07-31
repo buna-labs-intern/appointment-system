@@ -1,103 +1,147 @@
-
-import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router'
-import { Bell, Menu, Search, Settings, User } from 'lucide-react'
+import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+import { Button } from '@/components/ui/button'
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
 import useAuth from '@/hooks/useAuth'
-import { getInitials } from '@/features/dashboard/mockData'
+import { canChangeOwnPassword } from '@/utils/permissions'
 
-type NavbarProps = {
-  onMenuClick?: () => void
-}
+const passwordSchema = z
+  .object({
+    currentPassword: z.string().min(1, 'Current password is required'),
+    newPassword: z
+      .string()
+      .min(8, 'New password must be at least 8 characters')
+      .regex(/[A-Z]/, 'Include an uppercase letter')
+      .regex(/[0-9]/, 'Include a number'),
+    confirmPassword: z.string().min(1, 'Confirm your new password'),
+  })
+  .refine((values) => values.newPassword === values.confirmPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword'],
+  })
 
-export default function Navbar({ onMenuClick }: NavbarProps) {
+type PasswordFormValues = z.infer<typeof passwordSchema>
+
+export default function ProfilePage() {
   const { user } = useAuth()
-  const displayName = user?.fullName || user?.email || 'User'
-  const initials = getInitials(displayName)
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const settingsRef = useRef<HTMLDivElement>(null)
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+  const canChangePassword = canChangeOwnPassword(user?.role)
 
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        settingsRef.current &&
-        !settingsRef.current.contains(event.target as Node)
-      ) {
-        setSettingsOpen(false)
-      }
-    }
+  const form = useForm<PasswordFormValues>({
+    resolver: zodResolver(passwordSchema),
+    defaultValues: {
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: '',
+    },
+  })
 
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+  function onSubmit(_values: PasswordFormValues) {
+    setError('')
+    setMessage('')
+    setMessage('Password change request saved locally. Connect the API to persist it.')
+    form.reset()
+  }
 
   return (
-    <header className="flex h-16 items-center gap-3 border-b border-border bg-white px-4 lg:px-6">
-      <button
-        type="button"
-        onClick={onMenuClick}
-        className="rounded-md border border-border p-2 text-foreground lg:hidden"
-        aria-label="Open menu"
-      >
-        <Menu className="h-4 w-4" />
-      </button>
-
-      <div className="mx-auto flex w-full max-w-xl items-center">
-        <div className="relative w-full">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="search"
-            placeholder="Search patients, doctors..."
-            className="h-10 w-full rounded-full border border-border bg-muted/40 pl-10 pr-4 text-sm outline-none transition focus:border-[#0F5C66] focus:ring-2 focus:ring-[#0F5C66]/20"
-          />
-        </div>
+    <section className="mx-auto max-w-2xl space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold text-foreground">Profile</h3>
+        <p className="text-sm text-muted-foreground">
+          View your account and change your password.
+        </p>
       </div>
 
-      <div className="ml-auto flex items-center gap-2 sm:gap-3">
-        <button
-          type="button"
-          className="rounded-full p-2 text-muted-foreground hover:bg-muted"
-          aria-label="Notifications"
-        >
-          <Bell className="h-4 w-4" />
-        </button>
-
-        <div className="relative" ref={settingsRef}>
-          <button
-            type="button"
-            onClick={() => setSettingsOpen((open) => !open)}
-            className="rounded-full p-2 text-muted-foreground hover:bg-muted"
-            aria-label="Settings"
-            aria-expanded={settingsOpen}
-          >
-            <Settings className="h-4 w-4" />
-          </button>
-
-          {settingsOpen ? (
-            <div className="absolute right-0 z-50 mt-2 w-48 rounded-xl border border-border bg-white p-1 shadow-lg">
-              <Link
-                to="/profile"
-                onClick={() => setSettingsOpen(false)}
-                className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-foreground hover:bg-muted"
-              >
-                <User className="h-4 w-4 text-[#0F5C66]" />
-                Profile
-              </Link>
-            </div>
-          ) : null}
-        </div>
-
-        <div className="flex items-center gap-2 border-l border-border pl-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#0F5C66] text-xs font-semibold text-white">
-            {initials || 'NC'}
+      <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+        <h4 className="mb-4 text-sm font-semibold text-foreground">Current user</h4>
+        <dl className="space-y-3 text-sm">
+          <div className="flex justify-between gap-4">
+            <dt className="text-muted-foreground">Full name</dt>
+            <dd className="font-medium text-foreground">{user?.fullName || '—'}</dd>
           </div>
-          <div className="hidden text-left sm:block">
-            <p className="text-sm font-medium leading-none text-foreground">{displayName}</p>
-            <p className="mt-1 text-[11px] uppercase tracking-wide text-muted-foreground">
-              {user?.role || '—'}
-            </p>
+          <div className="flex justify-between gap-4">
+            <dt className="text-muted-foreground">Email</dt>
+            <dd className="font-medium text-foreground">{user?.email || '—'}</dd>
           </div>
-        </div>
+          <div className="flex justify-between gap-4">
+            <dt className="text-muted-foreground">Role</dt>
+            <dd className="font-medium uppercase text-foreground">{user?.role || '—'}</dd>
+          </div>
+          <div className="flex justify-between gap-4">
+            <dt className="text-muted-foreground">Must change password</dt>
+            <dd className="font-medium text-foreground">
+              {user?.mustChangePassword ? 'Yes' : 'No'}
+            </dd>
+          </div>
+        </dl>
       </div>
-    </header>
+
+      {canChangePassword ? (
+        <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+          <h4 className="mb-4 text-sm font-semibold text-foreground">Change password</h4>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="currentPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Current password</FormLabel>
+                    <FormControl>
+                      <Input type="password" autoComplete="current-password" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="newPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>New password</FormLabel>
+                    <FormControl>
+                      <Input type="password" autoComplete="new-password" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="confirmPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Confirm new password</FormLabel>
+                    <FormControl>
+                      <Input type="password" autoComplete="new-password" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {error ? <p className="text-sm text-destructive">{error}</p> : null}
+              {message ? <p className="text-sm text-emerald-700">{message}</p> : null}
+
+              <Button type="submit" className="bg-[#005B7F] hover:bg-[#004A68]">
+                Update password
+              </Button>
+            </form>
+          </Form>
+        </div>
+      ) : null}
+    </section>
   )
 }
