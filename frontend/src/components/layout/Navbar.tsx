@@ -52,13 +52,13 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
       </div>
 
       <div className="ml-auto flex items-center gap-2 sm:gap-3">
-        <button
-          type="button"
+        <Link
+          to="/notifications"
           className="rounded-full p-2 text-muted-foreground hover:bg-muted"
           aria-label="Notifications"
         >
           <Bell className="h-4 w-4" />
-        </button>
+        </Link>
 
         <div className="relative" ref={settingsRef}>
           <button

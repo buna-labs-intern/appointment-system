@@ -37,6 +37,7 @@ export const router = createBrowserRouter([
           { path: 'doctors', Component: DoctorsPage },
           { path: 'services', Component: ServicesPage },
           { path: 'profile', Component: ProfilePage },
+          { path: 'notifications', Component: NotificationsPage },
           {
             element: <RoleRoute allowedRoles={[ROLES.ADMIN]} />,
             children: [
