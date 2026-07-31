@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
-import { Eye, Pencil, Plus, Search, UserRound } from 'lucide-react'
+import { Eye, Pencil, Plus, Search, Trash2, UserRound } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -26,6 +26,7 @@ import { Input } from '@/components/ui/input'
 import useDebounce from '@/hooks/useDebounce'
 import {
   createDoctor,
+  deleteDoctor,
   getDoctors,
   updateDoctor,
   type Doctor,
@@ -83,6 +84,13 @@ export default function DoctorList() {
       await queryClient.invalidateQueries({ queryKey: ['doctors'] })
     },
     onError: () => setFormError('Could not update doctor. Try again.'),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => deleteDoctor(id),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['doctors'] })
+    },
   })
 
   const doctors = doctorsQuery.data ?? []
@@ -148,13 +156,18 @@ export default function DoctorList() {
     })
   }
 
+  function handleDelete(doctor: Doctor) {
+    if (!window.confirm(`Delete ${doctor.fullName}? This cannot be undone.`)) return
+    deleteMutation.mutate(doctor.id)
+  }
+
   return (
     <section className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-lg font-semibold text-foreground">Doctors</h3>
           <p className="text-sm text-muted-foreground">
-            Administrators and receptionists can manage doctors, specialties, and active status.
+            Browse clinic doctors, specialties, and availability status.
           </p>
         </div>
         <Button onClick={openAdd} className="bg-[#005B7F] hover:bg-[#004A68]">
@@ -244,6 +257,16 @@ export default function DoctorList() {
                           disabled={updateMutation.isPending}
                         >
                           {doctor.isActive ? 'Deactivate' : 'Activate'}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(doctor)}
+                          disabled={deleteMutation.isPending}
+                          aria-label={`Delete ${doctor.fullName}`}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
                     </td>

@@ -45,7 +45,7 @@ export default function LoginForm({ onSubmit, error, isSubmitting }: LoginFormPr
                 <Input
                   type="email"
                   autoComplete="email"
-                  placeholder="admin@nexacare.com"
+                  placeholder="admin@hospital.com"
                   className="h-11 rounded-xl"
                   disabled={isSubmitting}
                   {...field}

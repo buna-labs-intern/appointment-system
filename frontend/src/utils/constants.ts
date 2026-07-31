@@ -34,8 +34,18 @@ export const NAV_ITEMS = [
     icon: 'ClipboardList',
   },
   {
+    label: 'Reports',
+    path: '/reports',
+    icon: 'BarChart3',
+  },
+  {
     label: 'Receptionists',
     path: '/users',
     icon: 'UserCog',
+  },
+  {
+    label: 'Profile',
+    path: '/profile',
+    icon: 'UserRound',
   },
 ]

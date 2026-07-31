@@ -1,4 +1,5 @@
-﻿import { Bell, Menu, Search, Settings, Stethoscope } from 'lucide-react'
+﻿import { Link } from 'react-router'
+import { Bell, Menu, Search, Settings, Stethoscope } from 'lucide-react'
 import useAuth from '@/hooks/useAuth'
 import { getInitials } from '@/features/dashboard/mockData'
 
@@ -48,13 +49,13 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
         >
           <Bell className="h-4 w-4" />
         </button>
-        <button
-          type="button"
+        <Link
+          to="/profile"
           className="hidden rounded-full p-2 text-muted-foreground hover:bg-muted sm:inline-flex"
-          aria-label="Settings"
+          aria-label="Profile and password"
         >
           <Settings className="h-4 w-4" />
-        </button>
+        </Link>
 
         <div className="flex items-center gap-2 border-l border-border pl-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#0F5C66] text-xs font-semibold text-white">

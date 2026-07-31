@@ -25,7 +25,7 @@ import { Input } from '@/components/ui/input'
 import useAuth from '@/hooks/useAuth'
 import useDebounce from '@/hooks/useDebounce'
 import { formatDate } from '@/utils/formatDate'
-import { ROLES } from '@/utils/constants'
+import { canManagePatients as canManagePatientsRole } from '@/utils/permissions'
 import {
   createPatient,
   getPatients,
@@ -71,8 +71,8 @@ export default function PatientList() {
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
   const [formError, setFormError] = useState('')
 
-  /** Receptionists own patient registration/updates; admins can view/search only. */
-  const canManagePatients = user?.role === ROLES.RECEPTIONIST
+  /** Admin and receptionist can manage patients (access matrix). */
+  const canManagePatients = canManagePatientsRole(user?.role)
 
   const patientsQuery = useQuery({
     queryKey: ['patients', debouncedSearch],
@@ -182,9 +182,7 @@ export default function PatientList() {
         <div>
           <h3 className="text-lg font-semibold text-foreground">Patients</h3>
           <p className="text-sm text-muted-foreground">
-            {canManagePatients
-              ? 'Register patients and search existing records before booking.'
-              : 'View and search patient records. Only receptionists can register or edit patients.'}
+            Find patient records and keep contact details up to date.
           </p>
         </div>
         {canManagePatients ? (
