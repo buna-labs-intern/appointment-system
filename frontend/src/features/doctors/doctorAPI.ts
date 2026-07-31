@@ -110,3 +110,13 @@ export async function updateDoctor(
     return updated
   }
 }
+
+export async function deleteDoctor(id: string | number): Promise<void> {
+  try {
+    await api.delete(`/doctors/${id}`, { timeout: 1500 })
+  } catch {
+    const index = mockDoctors.findIndex((doctor) => doctor.id === Number(id))
+    if (index === -1) throw new Error('Doctor not found')
+    mockDoctors = [...mockDoctors.slice(0, index), ...mockDoctors.slice(index + 1)]
+  }
+}

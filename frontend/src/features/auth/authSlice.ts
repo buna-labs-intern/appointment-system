@@ -2,10 +2,11 @@
 import { AUTH_STORAGE_KEY } from '@/utils/constants'
 
 export type AuthUser = {
-  id: number | string
+  id: string
   email: string
   fullName?: string
   role: string
+  mustChangePassword?: boolean
 }
 
 type AuthState = {

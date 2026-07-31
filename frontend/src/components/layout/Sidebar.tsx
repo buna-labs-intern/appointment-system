@@ -1,15 +1,18 @@
 ﻿import { NavLink } from 'react-router'
 import {
+  BarChart3,
   CalendarDays,
   ClipboardList,
   LayoutDashboard,
   LogOut,
   Stethoscope,
   UserCog,
+  UserRound,
   Users,
 } from 'lucide-react'
 import useAuth from '@/hooks/useAuth'
-import { NAV_ITEMS, ROLES } from '@/utils/constants'
+import { NAV_ITEMS } from '@/utils/constants'
+import { canAccessPath } from '@/utils/permissions'
 
 const ICONS = {
   LayoutDashboard,
@@ -17,7 +20,9 @@ const ICONS = {
   Users,
   Stethoscope,
   ClipboardList,
+  BarChart3,
   UserCog,
+  UserRound,
 }
 
 type SidebarProps = {
@@ -33,10 +38,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
     logout()
   }
 
-  const items =
-    user?.role === ROLES.ADMIN
-      ? NAV_ITEMS
-      : NAV_ITEMS.filter((item) => item.path !== '/users')
+  const items = NAV_ITEMS.filter((item) => canAccessPath(item.path, user?.role))
 
   return (
     <>
