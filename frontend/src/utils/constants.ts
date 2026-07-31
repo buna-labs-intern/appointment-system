@@ -43,9 +43,4 @@ export const NAV_ITEMS = [
     path: '/users',
     icon: 'UserCog',
   },
-  {
-    label: 'Profile',
-    path: '/profile',
-    icon: 'UserRound',
-  },
 ]
