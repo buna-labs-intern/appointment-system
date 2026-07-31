@@ -1,5 +1,5 @@
 ﻿import { useMemo, useState } from 'react'
-import { Ban, Pencil, Plus, Search } from 'lucide-react'
+import { Ban, Pencil, Plus, Search, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -76,6 +76,13 @@ export default function Receptionists() {
     )
   }
 
+  const handleDelete = (person: Receptionist) => {
+    const confirmed = window.confirm(
+      `Delete receptionist "${person.fullName}"? This cannot be undone.`,
+    )
+    if (!confirmed) return
+    setStaff((prev) => prev.filter((s) => s.id !== person.id))
+  }
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -181,6 +188,14 @@ export default function Receptionists() {
                             }
                           >
                             <Ban className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(person)}
+                            className="rounded-md p-2 text-rose-700 hover:bg-rose-50"
+                            aria-label={`Delete ${person.fullName}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
                       </td>
