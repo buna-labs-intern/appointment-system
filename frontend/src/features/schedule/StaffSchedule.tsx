@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight, Clock3, Plus, ShieldCheck, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import ShiftForm from '@/features/schedule/ShiftForm'
+import ShiftForm from '@/features/schedule/shiftForm'
 import {
   formatWeekRange,
   getWeekDays,
