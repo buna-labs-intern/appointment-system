@@ -324,7 +324,7 @@ export default function AppointmentList() {
           </p>
         </div>
         {canManage ? (
-          <Button onClick={openCreate} className="bg-[#005B7F] hover:bg-[#004A68]">
+          <Button onClick={openCreate} className="bg-[#0F5C66] hover:bg-[#0C4B53]">
             <Plus className="h-4 w-4" />
             Create appointment
           </Button>
@@ -341,7 +341,118 @@ export default function AppointmentList() {
         />
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+      <div className="space-y-3 md:hidden">
+        {appointmentsQuery.isLoading ? (
+          <LoadingState label="Loading appointments..." />
+        ) : appointments.length === 0 ? (
+          <EmptyState
+            title="No appointments found"
+            description="Create an appointment or clear your search."
+          />
+        ) : (
+          appointments.map((appointment) => (
+            <div
+              key={appointment.id}
+              className="rounded-xl border border-border bg-card p-4 shadow-sm"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-medium text-foreground">{appointment.patientName}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{appointment.doctorName}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {formatDate(appointment.date)} · {appointment.startTime} –{' '}
+                    {appointment.endTime}
+                  </p>
+                  <div className="mt-2">
+                    <Badge variant={statusVariant[appointment.status]}>
+                      {statusLabel[appointment.status]}
+                    </Badge>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => openDetails(appointment)}
+                  aria-label={`View appointment for ${appointment.patientName}`}
+                >
+                  <Eye className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {canManage && appointment.status === 'SCHEDULED' ? (
+                <div className="mt-3 flex flex-wrap gap-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => openEdit(appointment)}
+                    aria-label="Edit appointment"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => openReschedule(appointment)}
+                    aria-label="Reschedule appointment"
+                  >
+                    <CalendarClock className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setStatus(appointment, 'CHECKED_IN')}
+                    disabled={updateMutation.isPending}
+                  >
+                    <UserCheck className="h-3.5 w-3.5" />
+                    Check in
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setStatus(appointment, 'NO_SHOW')}
+                    disabled={updateMutation.isPending}
+                  >
+                    <UserX className="h-3.5 w-3.5" />
+                    No-show
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setStatus(appointment, 'CANCELLED')}
+                    disabled={updateMutation.isPending}
+                  >
+                    <XCircle className="h-3.5 w-3.5" />
+                    Cancel
+                  </Button>
+                </div>
+              ) : null}
+
+              {canManage && appointment.status === 'CHECKED_IN' ? (
+                <div className="mt-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setStatus(appointment, 'COMPLETED')}
+                    disabled={updateMutation.isPending}
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    Complete
+                  </Button>
+                </div>
+              ) : null}
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="hidden overflow-hidden rounded-xl border border-border bg-card shadow-sm md:block">
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm">
             <thead className="border-b border-border bg-muted/40 text-muted-foreground">

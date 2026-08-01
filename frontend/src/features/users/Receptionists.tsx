@@ -1,19 +1,25 @@
 ﻿import { useMemo, useState } from 'react'
 import { Ban, Pencil, Plus, Search, Trash2 } from 'lucide-react'
+import ConfirmDialog from '@/components/common/ConfirmDialog'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import useAuth from '@/hooks/useAuth'
 import ReceptionistCards from '@/features/users/ReceptionistCards'
 import ReceptionistForm from '@/features/users/ReceptionistForm'
 import { getInitials, getReceptionistStats, mockReceptionists } from '@/features/users/mockData'
 import type { ReceptionistFormValues } from '@/features/users/receptionistSchema'
 import type { Receptionist } from '@/features/users/types'
+import { canManageReceptionists } from '@/utils/permissions'
 
 export default function Receptionists() {
+  const { user } = useAuth()
+  const canManage = canManageReceptionists(user?.role)
   const [staff, setStaff] = useState<Receptionist[]>(mockReceptionists)
   const [search, setSearch] = useState('')
   const [dialogMode, setDialogMode] = useState<'create' | 'edit' | null>(null)
   const [selected, setSelected] = useState<Receptionist | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<Receptionist | null>(null)
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -26,11 +32,13 @@ export default function Receptionists() {
   const stats = useMemo(() => getReceptionistStats(staff), [staff])
 
   const openCreate = () => {
+    if (!canManage) return
     setSelected(null)
     setDialogMode('create')
   }
 
   const openEdit = (person: Receptionist) => {
+    if (!canManage) return
     setSelected(person)
     setDialogMode('edit')
   }
@@ -71,17 +79,21 @@ export default function Receptionists() {
   }
 
   const toggleActive = (person: Receptionist) => {
+    if (!canManage) return
     setStaff((prev) =>
       prev.map((s) => (s.id === person.id ? { ...s, isActive: !s.isActive } : s)),
     )
   }
 
   const handleDelete = (person: Receptionist) => {
-    const confirmed = window.confirm(
-      `Delete receptionist "${person.fullName}"? This cannot be undone.`,
-    )
-    if (!confirmed) return
-    setStaff((prev) => prev.filter((s) => s.id !== person.id))
+    if (!canManage) return
+    setPendingDelete(person)
+  }
+
+  const confirmDelete = () => {
+    if (!pendingDelete) return
+    setStaff((prev) => prev.filter((s) => s.id !== pendingDelete.id))
+    setPendingDelete(null)
   }
   return (
     <div className="space-y-6">
@@ -94,10 +106,12 @@ export default function Receptionists() {
             Create, update, and activate receptionist accounts for clinic operations.
           </p>
         </div>
-        <Button onClick={openCreate} className="rounded-lg bg-[#0F5C66] hover:bg-[#0C4B53]">
-          <Plus className="h-4 w-4" />
-          Add Receptionist
-        </Button>
+        {canManage ? (
+          <Button onClick={openCreate} className="rounded-lg bg-[#0F5C66] hover:bg-[#0C4B53]">
+            <Plus className="h-4 w-4" />
+            Add Receptionist
+          </Button>
+        ) : null}
       </div>
 
       <ReceptionistCards stats={stats} />
@@ -168,36 +182,40 @@ export default function Receptionists() {
                       </td>
                       <td className="py-4 text-foreground">{person.joinDate}</td>
                       <td className="py-4">
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => openEdit(person)}
-                            className="rounded-md p-2 text-[#0F5C66] hover:bg-muted"
-                            aria-label={`Edit ${person.fullName}`}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => toggleActive(person)}
-                            className="rounded-md p-2 text-rose-600 hover:bg-rose-50"
-                            aria-label={
-                              person.isActive
-                                ? `Deactivate ${person.fullName}`
-                                : `Activate ${person.fullName}`
-                            }
-                          >
-                            <Ban className="h-4 w-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(person)}
-                            className="rounded-md p-2 text-rose-700 hover:bg-rose-50"
-                            aria-label={`Delete ${person.fullName}`}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
+                        {canManage ? (
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => openEdit(person)}
+                              className="rounded-md p-2 text-[#0F5C66] hover:bg-muted"
+                              aria-label={`Edit ${person.fullName}`}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => toggleActive(person)}
+                              className="rounded-md p-2 text-rose-600 hover:bg-rose-50"
+                              aria-label={
+                                person.isActive
+                                  ? `Deactivate ${person.fullName}`
+                                  : `Activate ${person.fullName}`
+                              }
+                            >
+                              <Ban className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(person)}
+                              className="rounded-md p-2 text-rose-700 hover:bg-rose-50"
+                              aria-label={`Delete ${person.fullName}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">View only</span>
+                        )}
                       </td>
                     </tr>
                   ))
@@ -220,7 +238,7 @@ export default function Receptionists() {
         </CardContent>
       </Card>
 
-      {dialogMode ? (
+      {dialogMode && canManage ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
             <h2 className="text-lg font-semibold text-foreground">
@@ -252,6 +270,18 @@ export default function Receptionists() {
           </div>
         </div>
       ) : null}
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Delete receptionist"
+        description={
+          pendingDelete
+            ? `Delete receptionist "${pendingDelete.fullName}"? This cannot be undone.`
+            : ''
+        }
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={confirmDelete}
+      />
     </div>
   )
 }

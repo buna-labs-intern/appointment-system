@@ -25,5 +25,7 @@ export function getDataSource() {
 
 export function subscribeDataSource(listener: () => void) {
   listeners.add(listener)
-  return () => listeners.delete(listener)
+  return () => {
+    listeners.delete(listener)
+  }
 }

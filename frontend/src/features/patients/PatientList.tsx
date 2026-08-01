@@ -194,7 +194,7 @@ export default function PatientList() {
           </p>
         </div>
         {canManagePatients ? (
-          <Button onClick={openAdd} className="bg-[#005B7F] hover:bg-[#004A68]">
+          <Button onClick={openAdd} className="bg-[#0F5C66] hover:bg-[#0C4B53]">
             <Plus className="h-4 w-4" />
             Register patient
           </Button>
@@ -211,7 +211,57 @@ export default function PatientList() {
         />
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+      <div className="space-y-3 md:hidden">
+        {patientsQuery.isLoading ? (
+          <LoadingState label="Loading patients..." />
+        ) : patients.length === 0 ? (
+          <EmptyState
+            title="No patients found"
+            description="Register a patient or clear your search."
+          />
+        ) : (
+          patients.map((patient) => (
+            <div
+              key={patient.id}
+              className="rounded-xl border border-border bg-card p-4 shadow-sm"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-medium text-foreground">{patient.fullName}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{patient.phone}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {genderLabel[patient.gender]} · {formatDate(patient.dateOfBirth)}
+                  </p>
+                </div>
+                <div className="flex gap-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => openDetails(patient)}
+                    aria-label={`View ${patient.fullName}`}
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                  {canManagePatients ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => openEdit(patient)}
+                      aria-label={`Edit ${patient.fullName}`}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="hidden overflow-hidden rounded-xl border border-border bg-card shadow-sm md:block">
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm">
             <thead className="border-b border-border bg-muted/40 text-muted-foreground">

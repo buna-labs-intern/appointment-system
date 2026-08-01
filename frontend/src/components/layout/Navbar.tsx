@@ -48,12 +48,20 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
   const initials = getInitials(displayName)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [search, setSearch] = useState('')
+  const [unreadCount, setUnreadCount] = useState(getUnreadCount)
   const [target, setTarget] = useState<SearchTarget>(() => targetFromPath(location.pathname))
   const settingsRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setTarget(targetFromPath(location.pathname))
   }, [location.pathname])
+
+  useEffect(() => {
+    const unsubscribe = subscribeNotifications(() => setUnreadCount(getUnreadCount()))
+    return () => {
+      unsubscribe()
+    }
+  }, [])
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -116,10 +124,17 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
       <div className="ml-auto flex items-center gap-2 sm:gap-3">
         <Link
           to="/notifications"
-          className="rounded-full p-2 text-muted-foreground hover:bg-muted"
-          aria-label="Notifications"
+          className="relative rounded-full p-2 text-muted-foreground hover:bg-muted"
+          aria-label={
+            unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'
+          }
         >
           <Bell className="h-4 w-4" />
+          {unreadCount > 0 ? (
+            <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-semibold text-white">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
+          ) : null}
         </Link>
 
         <div className="relative" ref={settingsRef}>
