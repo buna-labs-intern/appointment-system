@@ -3,7 +3,6 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router'
-import { z } from 'zod'
 import {
   CalendarClock,
   CheckCircle2,
@@ -40,6 +39,7 @@ import useAuth from '@/hooks/useAuth'
 import useDebounce from '@/hooks/useDebounce'
 import { formatDate } from '@/utils/formatDate'
 import { canManageAppointments } from '@/utils/permissions'
+import { APPOINTMENT_TIME_OPTIONS, todayKey } from '@/utils/clinicHours'
 import { getDoctors } from '@/features/doctors/doctorAPI'
 import { getPatients } from '@/features/patients/patientAPI'
 import { getServices } from '@/features/services/serviceAPI'
@@ -53,25 +53,11 @@ import {
   type AppointmentPayload,
   type AppointmentStatus,
 } from '@/features/appointments/appointmentAPI'
+import {
+  appointmentSchema,
+  type AppointmentFormValues,
+} from '@/features/appointments/appointmentSchema'
 import { toast } from '@/lib/toastStore'
-
-const appointmentSchema = z
-  .object({
-    patientId: z.string().min(1, 'Patient is required'),
-    doctorId: z.string().min(1, 'Doctor is required'),
-    serviceId: z.string().min(1, 'Service is required'),
-    date: z.string().min(1, 'Date is required'),
-    startTime: z.string().min(1, 'Start time is required'),
-    endTime: z.string().min(1, 'End time is required'),
-    reason: z.string().optional(),
-    notes: z.string().optional(),
-  })
-  .refine((values) => values.endTime > values.startTime, {
-    message: 'End time must be after start time',
-    path: ['endTime'],
-  })
-
-type AppointmentFormValues = z.infer<typeof appointmentSchema>
 
 type DialogMode = 'create' | 'edit' | 'reschedule' | 'details' | null
 
@@ -85,23 +71,6 @@ const emptyValues: AppointmentFormValues = {
   reason: '',
   notes: '',
 }
-
-const TIME_OPTIONS = [
-  '09:00',
-  '09:30',
-  '10:00',
-  '10:30',
-  '11:00',
-  '11:30',
-  '13:00',
-  '13:30',
-  '14:00',
-  '14:30',
-  '15:00',
-  '15:30',
-  '16:00',
-  '16:30',
-]
 
 const statusLabel: Record<AppointmentStatus, string> = {
   SCHEDULED: 'Scheduled',
@@ -644,7 +613,12 @@ export default function AppointmentList() {
             </div>
           ) : canManage ? (
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <form
+                onSubmit={form.handleSubmit(onSubmit, () => {
+                  toast.error('Please fix the appointment details and try again')
+                })}
+                className="space-y-4"
+              >
                 {dialogMode !== 'reschedule' ? (
                   <>
                     <FormField
@@ -719,7 +693,7 @@ export default function AppointmentList() {
                     <FormItem>
                       <FormLabel>Date</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} />
+                        <Input type="date" min={todayKey()} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -735,7 +709,7 @@ export default function AppointmentList() {
                         <FormLabel>Start time</FormLabel>
                         <FormControl>
                           <select {...field} className={selectClassName}>
-                            {TIME_OPTIONS.map((time) => (
+                            {APPOINTMENT_TIME_OPTIONS.map((time) => (
                               <option key={time} value={time}>
                                 {time}
                               </option>
@@ -755,7 +729,7 @@ export default function AppointmentList() {
                         <FormLabel>End time</FormLabel>
                         <FormControl>
                           <select {...field} className={selectClassName}>
-                            {TIME_OPTIONS.map((time) => (
+                            {APPOINTMENT_TIME_OPTIONS.map((time) => (
                               <option key={time} value={time}>
                                 {time}
                               </option>
@@ -803,6 +777,12 @@ export default function AppointmentList() {
                       )}
                     />
                   </>
+                ) : null}
+
+                {Object.keys(form.formState.errors).length > 0 ? (
+                  <p className="text-sm text-destructive">
+                    Please fix the highlighted fields before saving.
+                  </p>
                 ) : null}
 
                 {formError ? <p className="text-sm text-destructive">{formError}</p> : null}

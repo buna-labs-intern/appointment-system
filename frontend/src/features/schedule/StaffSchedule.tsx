@@ -56,6 +56,20 @@ export default function StaffSchedule() {
     const person = mockReceptionists.find((r) => r.id === values.receptionistId)
     if (!person) return
 
+    const duplicate = shifts.some(
+      (s) =>
+        s.receptionistId === person.id &&
+        s.date === values.date &&
+        s.session === values.session,
+    )
+
+    if (duplicate) {
+      toast.error(
+        `${person.fullName} already has a ${values.session.toLowerCase()} shift on this date`,
+      )
+      return
+    }
+
     setIsSubmitting(true)
     try {
       const times = SESSION_TIMES[values.session]

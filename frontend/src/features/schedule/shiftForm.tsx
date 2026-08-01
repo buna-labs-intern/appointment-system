@@ -12,6 +12,8 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { SESSION_TIMES } from '@/features/schedule/types'
 import { shiftSchema, type ShiftFormValues } from '@/features/schedule/shiftSchema'
+import { todayKey } from '@/utils/clinicHours'
+import { toast } from '@/lib/toastStore'
 
 type StaffOption = {
   id: string
@@ -48,7 +50,12 @@ export default function ShiftForm({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form
+        onSubmit={form.handleSubmit(onSubmit, () => {
+          toast.error('Please fix the shift details and try again')
+        })}
+        className="space-y-4"
+      >
         <FormField
           control={form.control}
           name="receptionistId"
@@ -81,8 +88,11 @@ export default function ShiftForm({
             <FormItem>
               <FormLabel>Date</FormLabel>
               <FormControl>
-                <Input type="date" disabled={isSubmitting} {...field} />
+                <Input type="date" min={todayKey()} disabled={isSubmitting} {...field} />
               </FormControl>
+              <p className="text-xs text-muted-foreground">
+                Weekdays only. Past dates are not allowed.
+              </p>
               <FormMessage />
             </FormItem>
           )}
@@ -126,6 +136,12 @@ export default function ShiftForm({
             </FormItem>
           )}
         />
+
+        {Object.keys(form.formState.errors).length > 0 ? (
+          <p className="text-sm text-destructive">
+            Please fix the highlighted fields before saving.
+          </p>
+        ) : null}
 
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
