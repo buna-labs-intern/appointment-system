@@ -1,5 +1,6 @@
 ﻿import api from '@/services/axios'
 
+import { markApiLive, markMockFallback } from '@/lib/dataSource'
 export type Doctor = {
   id: number
   fullName: string
@@ -118,5 +119,15 @@ export async function deleteDoctor(id: string | number): Promise<void> {
     const index = mockDoctors.findIndex((doctor) => doctor.id === Number(id))
     if (index === -1) throw new Error('Doctor not found')
     mockDoctors = [...mockDoctors.slice(0, index), ...mockDoctors.slice(index + 1)]
+  }
+}
+export async function getDoctors(params?: DoctorListParams): Promise<Doctor[]> {
+  try {
+    const { data } = await api.get('/doctors', { params, timeout: 1500 })
+    markApiLive()
+    return normalizeList(data)
+  } catch {
+    markMockFallback()
+    return filterMockDoctors(params?.search)
   }
 }
