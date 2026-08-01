@@ -1,5 +1,5 @@
 ﻿import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { Bell, Menu, Search, Settings, User } from 'lucide-react'
 import useAuth from '@/hooks/useAuth'
 import { getInitials } from '@/features/dashboard/mockData'
@@ -10,9 +10,11 @@ type NavbarProps = {
 
 export default function Navbar({ onMenuClick }: NavbarProps) {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const displayName = user?.fullName || user?.email || 'User'
   const initials = getInitials(displayName)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [search, setSearch] = useState('')
   const settingsRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -29,6 +31,13 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  function handleSearchSubmit(event: React.FormEvent) {
+    event.preventDefault()
+    const q = search.trim()
+    if (!q) return
+    navigate(`/patients?q=${encodeURIComponent(q)}`)
+  }
+
   return (
     <header className="flex h-16 items-center gap-3 border-b border-border bg-white px-4 lg:px-6">
       <button
@@ -41,14 +50,16 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
       </button>
 
       <div className="mx-auto flex w-full max-w-xl items-center">
-        <div className="relative w-full">
+        <form onSubmit={handleSearchSubmit} className="relative w-full">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             type="search"
-            placeholder="Search patients, doctors..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search patients..."
             className="h-10 w-full rounded-full border border-border bg-muted/40 pl-10 pr-4 text-sm outline-none transition focus:border-[#0F5C66] focus:ring-2 focus:ring-[#0F5C66]/20"
           />
-        </div>
+        </form>
       </div>
 
       <div className="ml-auto flex items-center gap-2 sm:gap-3">
