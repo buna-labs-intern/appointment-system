@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight, Clock3, Plus, ShieldCheck, Users } from 'lucide-react'
+import EmptyState from '@/components/common/EmptyState'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import ShiftForm from '@/features/schedule/shiftForm'
@@ -12,11 +13,13 @@ import {
 import { SESSION_TIMES, type StaffShift } from '@/features/schedule/types'
 import type { ShiftFormValues } from '@/features/schedule/shiftSchema'
 import { mockReceptionists } from '@/features/users/mockData'
+import { toast } from '@/lib/toastStore'
 
 export default function StaffSchedule() {
   const [anchor, setAnchor] = useState(() => new Date())
   const [shifts, setShifts] = useState<StaffShift[]>(mockStaffShifts)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const weekDays = useMemo(() => getWeekDays(anchor), [anchor])
   const todayKey = toDateKey(new Date())
@@ -53,21 +56,27 @@ export default function StaffSchedule() {
     const person = mockReceptionists.find((r) => r.id === values.receptionistId)
     if (!person) return
 
-    const times = SESSION_TIMES[values.session]
-    const next: StaffShift = {
-      id: crypto.randomUUID(),
-      receptionistId: person.id,
-      receptionistName: person.fullName,
-      date: values.date,
-      session: values.session,
-      startTime: times.start,
-      endTime: times.end,
-      location: values.location.trim(),
-      status: 'Scheduled',
-    }
+    setIsSubmitting(true)
+    try {
+      const times = SESSION_TIMES[values.session]
+      const next: StaffShift = {
+        id: crypto.randomUUID(),
+        receptionistId: person.id,
+        receptionistName: person.fullName,
+        date: values.date,
+        session: values.session,
+        startTime: times.start,
+        endTime: times.end,
+        location: values.location.trim(),
+        status: 'Scheduled',
+      }
 
-    setShifts((prev) => [next, ...prev])
-    setDialogOpen(false)
+      setShifts((prev) => [next, ...prev])
+      toast.success('Shift added')
+      setDialogOpen(false)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -227,8 +236,11 @@ export default function StaffSchedule() {
               <tbody>
                 {todayShifts.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-10 text-center text-muted-foreground">
-                      No shifts scheduled for today. Use Manage Shifts to add one.
+                    <td colSpan={5}>
+                      <EmptyState
+                        title="No shifts today"
+                        description="Use Manage Shifts to add a shift for today."
+                      />
                     </td>
                   </tr>
                 ) : (
@@ -270,6 +282,7 @@ export default function StaffSchedule() {
                 staffOptions={staffOptions}
                 onSubmit={handleCreate}
                 onCancel={() => setDialogOpen(false)}
+                isSubmitting={isSubmitting}
               />
             </div>
           </div>

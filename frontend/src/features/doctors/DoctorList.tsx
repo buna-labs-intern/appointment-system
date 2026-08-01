@@ -38,6 +38,7 @@ import {
   type Doctor,
   type DoctorPayload,
 } from '@/features/doctors/doctorAPI'
+import { toast } from '@/lib/toastStore'
 
 const doctorSchema = z.object({
   fullName: z.string().trim().min(2, 'Full name is required'),
@@ -88,8 +89,12 @@ export default function DoctorList() {
     mutationFn: (payload: DoctorPayload) => createDoctor(payload),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['doctors'] })
+      toast.success('Doctor saved')
     },
-    onError: () => setFormError('Could not create doctor. Try again.'),
+    onError: () => {
+      setFormError('Could not create doctor. Try again.')
+      toast.error('Could not create doctor')
+    },
   })
 
   const updateMutation = useMutation({
@@ -97,15 +102,21 @@ export default function DoctorList() {
       updateDoctor(id, payload),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['doctors'] })
+      toast.success('Doctor updated')
     },
-    onError: () => setFormError('Could not update doctor. Try again.'),
+    onError: () => {
+      setFormError('Could not update doctor. Try again.')
+      toast.error('Could not update doctor')
+    },
   })
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => deleteDoctor(id),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['doctors'] })
+      toast.success('Doctor deleted')
     },
+    onError: () => toast.error('Could not delete doctor'),
   })
 
   const doctors = doctorsQuery.data ?? []

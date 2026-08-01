@@ -36,6 +36,7 @@ import {
   type Patient,
   type PatientPayload,
 } from '@/features/patients/patientAPI'
+import { toast } from '@/lib/toastStore'
 
 const patientSchema = z.object({
   fullName: z.string().trim().min(2, 'Full name is required'),
@@ -96,8 +97,12 @@ export default function PatientList() {
     mutationFn: (payload: PatientPayload) => createPatient(payload),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['patients'] })
+      toast.success('Patient registered')
     },
-    onError: () => setFormError('Could not register patient. Try again.'),
+    onError: () => {
+      setFormError('Could not register patient. Try again.')
+      toast.error('Could not register patient')
+    },
   })
 
   const updateMutation = useMutation({
@@ -105,8 +110,12 @@ export default function PatientList() {
       updatePatient(id, payload),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['patients'] })
+      toast.success('Patient updated')
     },
-    onError: () => setFormError('Could not update patient. Try again.'),
+    onError: () => {
+      setFormError('Could not update patient. Try again.')
+      toast.error('Could not update patient')
+    },
   })
 
   const patients = patientsQuery.data ?? []

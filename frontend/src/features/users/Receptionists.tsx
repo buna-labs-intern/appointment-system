@@ -1,6 +1,7 @@
 ﻿import { useMemo, useState } from 'react'
 import { Ban, Pencil, Plus, Search, Trash2 } from 'lucide-react'
 import ConfirmDialog from '@/components/common/ConfirmDialog'
+import EmptyState from '@/components/common/EmptyState'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -10,6 +11,7 @@ import ReceptionistForm from '@/features/users/ReceptionistForm'
 import { getInitials, getReceptionistStats, mockReceptionists } from '@/features/users/mockData'
 import type { ReceptionistFormValues } from '@/features/users/receptionistSchema'
 import type { Receptionist } from '@/features/users/types'
+import { toast } from '@/lib/toastStore'
 import { canManageReceptionists } from '@/utils/permissions'
 
 export default function Receptionists() {
@@ -20,6 +22,7 @@ export default function Receptionists() {
   const [dialogMode, setDialogMode] = useState<'create' | 'edit' | null>(null)
   const [selected, setSelected] = useState<Receptionist | null>(null)
   const [pendingDelete, setPendingDelete] = useState<Receptionist | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -49,33 +52,45 @@ export default function Receptionists() {
   }
 
   const handleCreate = (values: ReceptionistFormValues) => {
-    const next: Receptionist = {
-      id: crypto.randomUUID(),
-      fullName: values.fullName.trim(),
-      email: values.email.trim().toLowerCase(),
-      role: 'RECEPTIONIST',
-      isActive: values.isActive,
-      joinDate: new Date().toISOString().slice(0, 10),
+    setIsSubmitting(true)
+    try {
+      const next: Receptionist = {
+        id: crypto.randomUUID(),
+        fullName: values.fullName.trim(),
+        email: values.email.trim().toLowerCase(),
+        role: 'RECEPTIONIST',
+        isActive: values.isActive,
+        joinDate: new Date().toISOString().slice(0, 10),
+      }
+      setStaff((prev) => [next, ...prev])
+      toast.success('Receptionist added')
+      closeDialog()
+    } finally {
+      setIsSubmitting(false)
     }
-    setStaff((prev) => [next, ...prev])
-    closeDialog()
   }
 
   const handleEdit = (values: ReceptionistFormValues) => {
     if (!selected) return
-    setStaff((prev) =>
-      prev.map((s) =>
-        s.id === selected.id
-          ? {
-              ...s,
-              fullName: values.fullName.trim(),
-              email: values.email.trim().toLowerCase(),
-              isActive: values.isActive,
-            }
-          : s,
-      ),
-    )
-    closeDialog()
+    setIsSubmitting(true)
+    try {
+      setStaff((prev) =>
+        prev.map((s) =>
+          s.id === selected.id
+            ? {
+                ...s,
+                fullName: values.fullName.trim(),
+                email: values.email.trim().toLowerCase(),
+                isActive: values.isActive,
+              }
+            : s,
+        ),
+      )
+      toast.success('Receptionist updated')
+      closeDialog()
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const toggleActive = (person: Receptionist) => {
@@ -83,6 +98,7 @@ export default function Receptionists() {
     setStaff((prev) =>
       prev.map((s) => (s.id === person.id ? { ...s, isActive: !s.isActive } : s)),
     )
+    toast.success(person.isActive ? 'Receptionist deactivated' : 'Receptionist activated')
   }
 
   const handleDelete = (person: Receptionist) => {
@@ -94,6 +110,7 @@ export default function Receptionists() {
     if (!pendingDelete) return
     setStaff((prev) => prev.filter((s) => s.id !== pendingDelete.id))
     setPendingDelete(null)
+    toast.success('Receptionist deleted')
   }
   return (
     <div className="space-y-6">
@@ -147,8 +164,11 @@ export default function Receptionists() {
               <tbody>
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-10 text-center text-muted-foreground">
-                      No receptionists found.
+                    <td colSpan={5}>
+                      <EmptyState
+                        title="No receptionists found"
+                        description="Add a receptionist or clear your search."
+                      />
                     </td>
                   </tr>
                 ) : (
@@ -265,6 +285,7 @@ export default function Receptionists() {
                 }
                 onSubmit={dialogMode === 'create' ? handleCreate : handleEdit}
                 onCancel={closeDialog}
+                isSubmitting={isSubmitting}
               />
             </div>
           </div>

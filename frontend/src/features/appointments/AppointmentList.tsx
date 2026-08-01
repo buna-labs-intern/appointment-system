@@ -53,6 +53,7 @@ import {
   type AppointmentPayload,
   type AppointmentStatus,
 } from '@/features/appointments/appointmentAPI'
+import { toast } from '@/lib/toastStore'
 
 const appointmentSchema = z
   .object({
@@ -177,8 +178,12 @@ export default function AppointmentList() {
     mutationFn: (payload: AppointmentPayload) => createAppointment(payload),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['appointments'] })
+      toast.success('Appointment created')
     },
-    onError: () => setFormError('Could not create appointment. Try again.'),
+    onError: () => {
+      setFormError('Could not create appointment. Try again.')
+      toast.error('Could not create appointment')
+    },
   })
 
   const updateMutation = useMutation({
@@ -191,8 +196,12 @@ export default function AppointmentList() {
     }) => updateAppointment(id, payload),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['appointments'] })
+      toast.success('Appointment updated')
     },
-    onError: () => setFormError('Could not update appointment. Try again.'),
+    onError: () => {
+      setFormError('Could not update appointment. Try again.')
+      toast.error('Could not update appointment')
+    },
   })
 
   const appointments = appointmentsQuery.data ?? []
