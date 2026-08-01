@@ -11,10 +11,10 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
+  buildReportCsv,
   getInitials,
-  mockReportKpis,
-  mockStatusMix,
-  mockTopClinicians,
+  getReportData,
+  mockNeedsAttention,
   type ReportRange,
 } from '@/features/reports/mockData'
 
@@ -24,12 +24,30 @@ const RANGE_LABELS: Record<ReportRange, string> = {
   '90d': 'Last 90 days',
 }
 
+const severityStyles = {
+  high: 'border-l-rose-500 bg-rose-50/70',
+  medium: 'border-l-amber-500 bg-amber-50/70',
+  low: 'border-l-sky-500 bg-sky-50/70',
+}
+
 export default function ReportsOverview() {
   const [range, setRange] = useState<ReportRange>('30d')
+  const report = useMemo(() => getReportData(range), [range])
   const maxStatus = useMemo(
-    () => Math.max(...mockStatusMix.map((item) => item.count), 1),
-    [],
+    () => Math.max(...report.statusMix.map((item) => item.count), 1),
+    [report.statusMix],
   )
+
+  function handleExportCsv() {
+    const csv = buildReportCsv(range)
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `nexacare-report-${range}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
 
   return (
     <section className="space-y-6">
@@ -39,7 +57,7 @@ export default function ReportsOverview() {
             Operations Dashboard
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Live performance from your NexaCare clinic data.
+            Clinic performance overview for administrators.
           </p>
         </div>
 
@@ -54,11 +72,15 @@ export default function ReportsOverview() {
             <option value="90d">{RANGE_LABELS['90d']}</option>
           </select>
 
-          <Button type="button" variant="outline" className="rounded-lg">
+          <Button type="button" variant="outline" className="rounded-lg" disabled title="Coming soon">
             <Download className="h-4 w-4" />
             Export report
           </Button>
-          <Button type="button" className="rounded-lg bg-[#0F5C66] hover:bg-[#0C4B53]">
+          <Button
+            type="button"
+            onClick={handleExportCsv}
+            className="rounded-lg bg-[#0F5C66] hover:bg-[#0C4B53]"
+          >
             <FileSpreadsheet className="h-4 w-4" />
             Export CSV
           </Button>
@@ -68,26 +90,26 @@ export default function ReportsOverview() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           title="Completion rate"
-          value={`${mockReportKpis.completionRate}%`}
-          hint={`${mockReportKpis.completedCount} completed`}
+          value={`${report.kpis.completionRate}%`}
+          hint={`${report.kpis.completedCount} completed`}
           icon={<Activity className="h-4 w-4" />}
         />
         <KpiCard
           title="Appointments"
-          value={String(mockReportKpis.appointments)}
-          hint={RANGE_LABELS[range].replace('Last ', '') + ' window'}
+          value={String(report.kpis.appointments)}
+          hint={`${RANGE_LABELS[range]} window`}
           icon={<CalendarDays className="h-4 w-4" />}
         />
         <KpiCard
           title="No-shows"
-          value={String(mockReportKpis.noShows)}
-          hint={`${mockReportKpis.cancelled} cancelled`}
+          value={String(report.kpis.noShows)}
+          hint={`${report.kpis.cancelled} cancelled`}
           icon={<ShieldAlert className="h-4 w-4" />}
         />
         <KpiCard
           title="Active doctors"
-          value={String(mockReportKpis.activeDoctors)}
-          hint={`${mockReportKpis.patients} patients`}
+          value={String(report.kpis.activeDoctors)}
+          hint={`${report.kpis.patients} patients`}
           icon={<Stethoscope className="h-4 w-4" />}
         />
       </div>
@@ -99,8 +121,11 @@ export default function ReportsOverview() {
           </CardHeader>
           <CardContent>
             <div className="flex h-52 items-end gap-3 sm:gap-5">
-              {mockStatusMix.map((item) => {
-                const height = Math.max((item.count / maxStatus) * 100, item.count > 0 ? 18 : 6)
+              {report.statusMix.map((item) => {
+                const height = Math.max(
+                  (item.count / maxStatus) * 100,
+                  item.count > 0 ? 18 : 6,
+                )
 
                 return (
                   <div key={item.label} className="flex flex-1 flex-col items-center gap-2">
@@ -126,12 +151,12 @@ export default function ReportsOverview() {
             <CardTitle className="text-base font-semibold">Top clinicians</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {mockTopClinicians.length === 0 ? (
+            {report.clinicians.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">
                 No clinician activity yet.
               </p>
             ) : (
-              mockTopClinicians.map((doctor) => (
+              report.clinicians.map((doctor) => (
                 <div
                   key={doctor.id}
                   className="flex items-center gap-3 rounded-xl border border-border p-3"
@@ -161,6 +186,33 @@ export default function ReportsOverview() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="rounded-xl border-border shadow-sm">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-base font-semibold">Needs attention</CardTitle>
+          <span className="rounded-full bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700">
+            {mockNeedsAttention.length} open
+          </span>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {mockNeedsAttention.map((item) => (
+            <Link
+              key={item.id}
+              to={item.href}
+              className={`block rounded-lg border-l-4 px-4 py-3 transition hover:opacity-90 ${severityStyles[item.severity]}`}
+            >
+              <p className="text-sm font-medium text-foreground">{item.title}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{item.detail}</p>
+            </Link>
+          ))}
+          <Link
+            to="/appointments"
+            className="inline-flex pt-1 text-sm font-medium text-[#0F5C66] hover:underline"
+          >
+            Open appointments
+          </Link>
+        </CardContent>
+      </Card>
 
       <p className="pb-2 text-center text-xs text-muted-foreground">
         © {new Date().getFullYear()} NexaCare Health Systems — mock report data until APIs are
