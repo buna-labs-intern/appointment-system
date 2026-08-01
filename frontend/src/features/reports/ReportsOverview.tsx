@@ -3,7 +3,6 @@ import { Link } from 'react-router'
 import {
   Activity,
   CalendarDays,
-  Download,
   FileSpreadsheet,
   ShieldAlert,
   Stethoscope,
@@ -72,10 +71,6 @@ export default function ReportsOverview() {
             <option value="90d">{RANGE_LABELS['90d']}</option>
           </select>
 
-          <Button type="button" variant="outline" className="rounded-lg" disabled title="Coming soon">
-            <Download className="h-4 w-4" />
-            Export report
-          </Button>
           <Button
             type="button"
             onClick={handleExportCsv}

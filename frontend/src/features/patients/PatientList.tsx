@@ -1,9 +1,12 @@
-﻿import { useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router'
 import { z } from 'zod'
 import { Eye, Pencil, Plus, Search, Users } from 'lucide-react'
+import EmptyState from '@/components/common/EmptyState'
+import LoadingState from '@/components/common/LoadingState'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -65,8 +68,13 @@ const genderLabel: Record<Patient['gender'], string> = {
 export default function PatientList() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
-  const [search, setSearch] = useState('')
+  const [searchParams] = useSearchParams()
+  const [search, setSearch] = useState(searchParams.get('q') ?? '')
   const debouncedSearch = useDebounce(search, 300)
+
+  useEffect(() => {
+    setSearch(searchParams.get('q') ?? '')
+  }, [searchParams])
   const [dialogMode, setDialogMode] = useState<DialogMode>(null)
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
   const [formError, setFormError] = useState('')
@@ -218,14 +226,17 @@ export default function PatientList() {
             <tbody>
               {patientsQuery.isLoading ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
-                    Loading patients...
+                  <td colSpan={5}>
+                    <LoadingState label="Loading patients..." />
                   </td>
                 </tr>
               ) : patients.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
-                    No patients found. Register a patient or clear your search.
+                  <td colSpan={5}>
+                    <EmptyState
+                      title="No patients found"
+                      description="Register a patient or clear your search."
+                    />
                   </td>
                 </tr>
               ) : (

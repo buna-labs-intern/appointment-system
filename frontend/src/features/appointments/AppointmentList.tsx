@@ -1,7 +1,8 @@
-﻿import { useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router'
 import { z } from 'zod'
 import {
   CalendarClock,
@@ -14,6 +15,8 @@ import {
   UserX,
   XCircle,
 } from 'lucide-react'
+import EmptyState from '@/components/common/EmptyState'
+import LoadingState from '@/components/common/LoadingState'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -124,8 +127,14 @@ const selectClassName =
 export default function AppointmentList() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
-  const [search, setSearch] = useState('')
+  const [searchParams] = useSearchParams()
+  const [search, setSearch] = useState(searchParams.get('q') ?? '')
   const debouncedSearch = useDebounce(search, 300)
+
+  useEffect(() => {
+    setSearch(searchParams.get('q') ?? '')
+  }, [searchParams])
+
   const [dialogMode, setDialogMode] = useState<DialogMode>(null)
   const [selected, setSelected] = useState<Appointment | null>(null)
   const [formError, setFormError] = useState('')
@@ -348,14 +357,17 @@ export default function AppointmentList() {
             <tbody>
               {appointmentsQuery.isLoading ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
-                    Loading appointments...
+                  <td colSpan={6}>
+                    <LoadingState label="Loading appointments..." />
                   </td>
                 </tr>
               ) : appointments.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
-                    No appointments found.
+                  <td colSpan={6}>
+                    <EmptyState
+                      title="No appointments found"
+                      description="Create an appointment or clear your search."
+                    />
                   </td>
                 </tr>
               ) : (

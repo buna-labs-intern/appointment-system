@@ -135,8 +135,10 @@ export async function getAppointments(
 ): Promise<Appointment[]> {
   try {
     const { data } = await api.get('/appointments', { params, timeout: 1500 })
+    markApiLive()
     return normalizeList(data)
   } catch {
+    markMockFallback()
     return filterMockAppointments(params?.search)
   }
 }

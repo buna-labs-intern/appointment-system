@@ -1,5 +1,5 @@
 ﻿import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { Link, useLocation, useNavigate } from 'react-router'
 import { Bell, Menu, Search, Settings, User } from 'lucide-react'
 import useAuth from '@/hooks/useAuth'
 import { getInitials } from '@/features/dashboard/mockData'
@@ -8,14 +8,49 @@ type NavbarProps = {
   onMenuClick?: () => void
 }
 
+type SearchTarget = 'patients' | 'doctors' | 'appointments'
+
+const SEARCH_TARGETS: Record<
+  SearchTarget,
+  { path: string; label: string; placeholder: string }
+> = {
+  patients: {
+    path: '/patients',
+    label: 'Patients',
+    placeholder: 'Search by name, phone, or address...',
+  },
+  doctors: {
+    path: '/doctors',
+    label: 'Doctors',
+    placeholder: 'Search by name, specialty, or phone...',
+  },
+  appointments: {
+    path: '/appointments',
+    label: 'Appointments',
+    placeholder: 'Search patient, doctor, service, or status...',
+  },
+}
+
+function targetFromPath(pathname: string): SearchTarget {
+  if (pathname.startsWith('/doctors')) return 'doctors'
+  if (pathname.startsWith('/appointments')) return 'appointments'
+  return 'patients'
+}
+
 export default function Navbar({ onMenuClick }: NavbarProps) {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const displayName = user?.fullName || user?.email || 'User'
   const initials = getInitials(displayName)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [search, setSearch] = useState('')
+  const [target, setTarget] = useState<SearchTarget>(() => targetFromPath(location.pathname))
   const settingsRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setTarget(targetFromPath(location.pathname))
+  }, [location.pathname])
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -35,7 +70,7 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
     event.preventDefault()
     const q = search.trim()
     if (!q) return
-    navigate(`/patients?q=${encodeURIComponent(q)}`)
+    navigate(`${SEARCH_TARGETS[target].path}?q=${encodeURIComponent(q)}`)
   }
 
   return (
@@ -49,16 +84,29 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
         <Menu className="h-4 w-4" />
       </button>
 
-      <div className="mx-auto flex w-full max-w-xl items-center">
-        <form onSubmit={handleSearchSubmit} className="relative w-full">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search patients..."
-            className="h-10 w-full rounded-full border border-border bg-muted/40 pl-10 pr-4 text-sm outline-none transition focus:border-[#0F5C66] focus:ring-2 focus:ring-[#0F5C66]/20"
-          />
+      <div className="mx-auto flex w-full max-w-2xl items-center">
+        <form onSubmit={handleSearchSubmit} className="flex w-full items-center gap-2">
+          <select
+            value={target}
+            onChange={(e) => setTarget(e.target.value as SearchTarget)}
+            className="h-10 shrink-0 rounded-full border border-border bg-muted/40 px-3 text-sm outline-none transition focus:border-[#0F5C66] focus:ring-2 focus:ring-[#0F5C66]/20"
+            aria-label="Search in"
+          >
+            <option value="patients">{SEARCH_TARGETS.patients.label}</option>
+            <option value="doctors">{SEARCH_TARGETS.doctors.label}</option>
+            <option value="appointments">{SEARCH_TARGETS.appointments.label}</option>
+          </select>
+
+          <div className="relative min-w-0 flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={SEARCH_TARGETS[target].placeholder}
+              className="h-10 w-full rounded-full border border-border bg-muted/40 pl-10 pr-4 text-sm outline-none transition focus:border-[#0F5C66] focus:ring-2 focus:ring-[#0F5C66]/20"
+            />
+          </div>
         </form>
       </div>
 

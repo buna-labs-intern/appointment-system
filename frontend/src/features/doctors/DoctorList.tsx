@@ -1,9 +1,12 @@
-﻿import { useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router'
 import { z } from 'zod'
 import { Eye, Pencil, Plus, Search, Trash2, UserRound } from 'lucide-react'
+import EmptyState from '@/components/common/EmptyState'
+import LoadingState from '@/components/common/LoadingState'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -53,8 +56,14 @@ const emptyValues: DoctorFormValues = {
 
 export default function DoctorList() {
   const queryClient = useQueryClient()
-  const [search, setSearch] = useState('')
+  const [searchParams] = useSearchParams()
+  const [search, setSearch] = useState(searchParams.get('q') ?? '')
   const debouncedSearch = useDebounce(search, 300)
+
+  useEffect(() => {
+    setSearch(searchParams.get('q') ?? '')
+  }, [searchParams])
+
   const [dialogMode, setDialogMode] = useState<DialogMode>(null)
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null)
   const [formError, setFormError] = useState('')
@@ -201,14 +210,17 @@ export default function DoctorList() {
             <tbody>
               {doctorsQuery.isLoading ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
-                    Loading doctors...
+                  <td colSpan={5}>
+                    <LoadingState label="Loading doctors..." />
                   </td>
                 </tr>
               ) : doctors.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
-                    No doctors found.
+                  <td colSpan={5}>
+                    <EmptyState
+                      title="No doctors found"
+                      description="Add a doctor or clear your search."
+                    />
                   </td>
                 </tr>
               ) : (
