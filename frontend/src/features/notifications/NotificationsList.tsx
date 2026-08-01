@@ -1,9 +1,15 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Bell, CheckCheck, CircleAlert, CalendarDays, UserRound, Settings } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { mockNotifications } from '@/features/notifications/mockData'
-import type { AppNotification, NotificationType } from '@/features/notifications/types'
+import {
+  getNotifications,
+  getUnreadCount,
+  markAllNotificationsRead,
+  markNotificationRead,
+  subscribeNotifications,
+} from '@/features/notifications/notificationsStore'
+import type { NotificationType } from '@/features/notifications/types'
 
 const typeStyles: Record<NotificationType, string> = {
   appointment: 'bg-sky-50 text-sky-700',
@@ -20,28 +26,17 @@ const typeIcons = {
 }
 
 export default function NotificationsList() {
-  const [items, setItems] = useState<AppNotification[]>(mockNotifications)
+  const [items, setItems] = useState(getNotifications)
   const [filter, setFilter] = useState<'all' | 'unread'>('all')
 
-  const unreadCount = useMemo(
-    () => items.filter((item) => !item.isRead).length,
-    [items],
-  )
+  useEffect(() => subscribeNotifications(() => setItems(getNotifications())), [])
+
+  const unreadCount = useMemo(() => getUnreadCount(), [items])
 
   const visible = useMemo(() => {
     if (filter === 'unread') return items.filter((item) => !item.isRead)
     return items
   }, [items, filter])
-
-  const markAsRead = (id: string) => {
-    setItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, isRead: true } : item)),
-    )
-  }
-
-  const markAllAsRead = () => {
-    setItems((prev) => prev.map((item) => ({ ...item, isRead: true })))
-  }
 
   return (
     <div className="space-y-6">
@@ -55,7 +50,7 @@ export default function NotificationsList() {
         <Button
           type="button"
           variant="outline"
-          onClick={markAllAsRead}
+          onClick={markAllNotificationsRead}
           disabled={unreadCount === 0}
           className="rounded-lg"
         >
@@ -137,7 +132,7 @@ export default function NotificationsList() {
                             type="button"
                             variant="outline"
                             size="sm"
-                            onClick={() => markAsRead(item.id)}
+                            onClick={() => markNotificationRead(item.id)}
                             className="shrink-0 rounded-lg"
                           >
                             Mark read
