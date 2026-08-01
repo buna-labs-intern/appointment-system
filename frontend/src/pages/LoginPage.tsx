@@ -91,7 +91,7 @@ export default function LoginPage() {
         <section className="w-full max-w-md">
           <div className="rounded-2xl bg-white px-8 py-9 shadow-[0_12px_40px_rgba(16,42,68,0.08)]">
             <header className="mb-8 flex items-start gap-3">
-              <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#005B7F]">
+              <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0F5C66]">
                 <svg viewBox="0 0 24 24" className="h-5 w-5 fill-white" aria-hidden="true">
                   <path d="M12 2l7 3v6c0 5-3.5 9.5-7 11-3.5-1.5-7-6-7-11V5l7-3zm0 5v4h-2v2h2v2h2v-2h2v-2h-2V7h-2z" />
                 </svg>
@@ -119,7 +119,7 @@ export default function LoginPage() {
           </div>
 
           <div className="mt-5 flex justify-center">
-            <div className="inline-flex items-center gap-2 rounded-full bg-[#D9ECF7] px-4 py-2 text-xs font-medium text-[#005B7F]">
+            <div className="inline-flex items-center gap-2 rounded-full bg-[#E7F4F4] px-4 py-2 text-xs font-medium text-[#0F5C66]">
               <span className="h-2 w-2 rounded-full bg-[#22C55E]" />
               System Online
             </div>

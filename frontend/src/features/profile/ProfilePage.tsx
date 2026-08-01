@@ -135,7 +135,7 @@ export default function ProfilePage() {
               {error ? <p className="text-sm text-destructive">{error}</p> : null}
               {message ? <p className="text-sm text-emerald-700">{message}</p> : null}
 
-              <Button type="submit" className="bg-[#005B7F] hover:bg-[#004A68]">
+              <Button type="submit" className="bg-[#0F5C66] hover:bg-[#0C4B53]">
                 Update password
               </Button>
             </form>
