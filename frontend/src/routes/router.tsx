@@ -13,6 +13,7 @@ import UsersPage from '@/pages/UsersPage'
 import ProtectedRoute from '@/routes/PrivateRoute'
 import RoleRoute from '@/routes/RoleRoute'
 import { ROLES } from '@/utils/constants'
+import NotificationsPage from '@/pages/NotificationsPage'
 
 export const router = createBrowserRouter([
   {
@@ -36,6 +37,7 @@ export const router = createBrowserRouter([
           { path: 'doctors', Component: DoctorsPage },
           { path: 'services', Component: ServicesPage },
           { path: 'profile', Component: ProfilePage },
+          { path: 'notifications', Component: NotificationsPage },
           {
             element: <RoleRoute allowedRoles={[ROLES.ADMIN]} />,
             children: [

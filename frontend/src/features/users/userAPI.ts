@@ -39,3 +39,6 @@ export async function deactivateReceptionist(id: string | number) {
   const { data } = await api.patch<Receptionist>(`/users/${id}/deactivate`)
   return data
 }
+export async function deleteReceptionist(id: string | number) {
+  await api.delete(`/users/${id}`)
+}

@@ -1,9 +1,13 @@
-﻿import { useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router'
 import { z } from 'zod'
 import { Eye, Pencil, Plus, Search, Trash2, UserRound } from 'lucide-react'
+import ConfirmDialog from '@/components/common/ConfirmDialog'
+import EmptyState from '@/components/common/EmptyState'
+import LoadingState from '@/components/common/LoadingState'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -23,7 +27,9 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import useAuth from '@/hooks/useAuth'
 import useDebounce from '@/hooks/useDebounce'
+import { canManageDoctors } from '@/utils/permissions'
 import {
   createDoctor,
   deleteDoctor,
@@ -32,6 +38,7 @@ import {
   type Doctor,
   type DoctorPayload,
 } from '@/features/doctors/doctorAPI'
+import { toast } from '@/lib/toastStore'
 
 const doctorSchema = z.object({
   fullName: z.string().trim().min(2, 'Full name is required'),
@@ -52,11 +59,20 @@ const emptyValues: DoctorFormValues = {
 }
 
 export default function DoctorList() {
+  const { user } = useAuth()
   const queryClient = useQueryClient()
-  const [search, setSearch] = useState('')
+  const canManage = canManageDoctors(user?.role)
+  const [searchParams] = useSearchParams()
+  const [search, setSearch] = useState(searchParams.get('q') ?? '')
   const debouncedSearch = useDebounce(search, 300)
+
+  useEffect(() => {
+    setSearch(searchParams.get('q') ?? '')
+  }, [searchParams])
+
   const [dialogMode, setDialogMode] = useState<DialogMode>(null)
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<Doctor | null>(null)
   const [formError, setFormError] = useState('')
 
   const doctorsQuery = useQuery({
@@ -73,8 +89,12 @@ export default function DoctorList() {
     mutationFn: (payload: DoctorPayload) => createDoctor(payload),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['doctors'] })
+      toast.success('Doctor saved')
     },
-    onError: () => setFormError('Could not create doctor. Try again.'),
+    onError: () => {
+      setFormError('Could not create doctor. Try again.')
+      toast.error('Could not create doctor')
+    },
   })
 
   const updateMutation = useMutation({
@@ -82,15 +102,21 @@ export default function DoctorList() {
       updateDoctor(id, payload),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['doctors'] })
+      toast.success('Doctor updated')
     },
-    onError: () => setFormError('Could not update doctor. Try again.'),
+    onError: () => {
+      setFormError('Could not update doctor. Try again.')
+      toast.error('Could not update doctor')
+    },
   })
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => deleteDoctor(id),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['doctors'] })
+      toast.success('Doctor deleted')
     },
+    onError: () => toast.error('Could not delete doctor'),
   })
 
   const doctors = doctorsQuery.data ?? []
@@ -104,6 +130,7 @@ export default function DoctorList() {
   }, [dialogMode])
 
   function openAdd() {
+    if (!canManage) return
     setSelectedDoctor(null)
     setFormError('')
     form.reset(emptyValues)
@@ -111,6 +138,7 @@ export default function DoctorList() {
   }
 
   function openEdit(doctor: Doctor) {
+    if (!canManage) return
     setSelectedDoctor(doctor)
     setFormError('')
     form.reset({
@@ -136,6 +164,7 @@ export default function DoctorList() {
   }
 
   function onSubmit(values: DoctorFormValues) {
+    if (!canManage) return
     setFormError('')
     if (dialogMode === 'add') {
       createMutation.mutate(values, { onSuccess: () => closeDialog() })
@@ -150,6 +179,7 @@ export default function DoctorList() {
   }
 
   function toggleStatus(doctor: Doctor) {
+    if (!canManage) return
     updateMutation.mutate({
       id: doctor.id,
       payload: { isActive: !doctor.isActive },
@@ -157,8 +187,15 @@ export default function DoctorList() {
   }
 
   function handleDelete(doctor: Doctor) {
-    if (!window.confirm(`Delete ${doctor.fullName}? This cannot be undone.`)) return
-    deleteMutation.mutate(doctor.id)
+    if (!canManage) return
+    setPendingDelete(doctor)
+  }
+
+  function confirmDelete() {
+    if (!pendingDelete) return
+    deleteMutation.mutate(pendingDelete.id, {
+      onSettled: () => setPendingDelete(null),
+    })
   }
 
   return (
@@ -170,10 +207,12 @@ export default function DoctorList() {
             Browse clinic doctors, specialties, and availability status.
           </p>
         </div>
-        <Button onClick={openAdd} className="bg-[#005B7F] hover:bg-[#004A68]">
-          <Plus className="h-4 w-4" />
-          Add doctor
-        </Button>
+        {canManage ? (
+          <Button onClick={openAdd} className="bg-[#0F5C66] hover:bg-[#0C4B53]">
+            <Plus className="h-4 w-4" />
+            Add doctor
+          </Button>
+        ) : null}
       </div>
 
       <div className="relative max-w-md">
@@ -186,7 +225,81 @@ export default function DoctorList() {
         />
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+      <div className="space-y-3 md:hidden">
+        {doctorsQuery.isLoading ? (
+          <LoadingState label="Loading doctors..." />
+        ) : doctors.length === 0 ? (
+          <EmptyState
+            title="No doctors found"
+            description="Add a doctor or clear your search."
+          />
+        ) : (
+          doctors.map((doctor) => (
+            <div
+              key={doctor.id}
+              className="rounded-xl border border-border bg-card p-4 shadow-sm"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-medium text-foreground">{doctor.fullName}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{doctor.specialty}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{doctor.phone}</p>
+                  <div className="mt-2">
+                    <Badge variant={doctor.isActive ? 'success' : 'danger'}>
+                      {doctor.isActive ? 'Active' : 'Inactive'}
+                    </Badge>
+                  </div>
+                </div>
+                <div className="flex flex-wrap justify-end gap-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => openDetails(doctor)}
+                    aria-label={`View ${doctor.fullName}`}
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                  {canManage ? (
+                    <>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => openEdit(doctor)}
+                        aria-label={`Edit ${doctor.fullName}`}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => toggleStatus(doctor)}
+                        disabled={updateMutation.isPending}
+                      >
+                        {doctor.isActive ? 'Deactivate' : 'Activate'}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(doctor)}
+                        disabled={deleteMutation.isPending}
+                        aria-label={`Delete ${doctor.fullName}`}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="hidden overflow-hidden rounded-xl border border-border bg-card shadow-sm md:block">
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm">
             <thead className="border-b border-border bg-muted/40 text-muted-foreground">
@@ -201,14 +314,17 @@ export default function DoctorList() {
             <tbody>
               {doctorsQuery.isLoading ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
-                    Loading doctors...
+                  <td colSpan={5}>
+                    <LoadingState label="Loading doctors..." />
                   </td>
                 </tr>
               ) : doctors.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
-                    No doctors found.
+                  <td colSpan={5}>
+                    <EmptyState
+                      title="No doctors found"
+                      description="Add a doctor or clear your search."
+                    />
                   </td>
                 </tr>
               ) : (
@@ -240,34 +356,38 @@ export default function DoctorList() {
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openEdit(doctor)}
-                          aria-label={`Edit ${doctor.fullName}`}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => toggleStatus(doctor)}
-                          disabled={updateMutation.isPending}
-                        >
-                          {doctor.isActive ? 'Deactivate' : 'Activate'}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(doctor)}
-                          disabled={deleteMutation.isPending}
-                          aria-label={`Delete ${doctor.fullName}`}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                        {canManage ? (
+                          <>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openEdit(doctor)}
+                              aria-label={`Edit ${doctor.fullName}`}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => toggleStatus(doctor)}
+                              disabled={updateMutation.isPending}
+                            >
+                              {doctor.isActive ? 'Deactivate' : 'Activate'}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDelete(doctor)}
+                              disabled={deleteMutation.isPending}
+                              aria-label={`Delete ${doctor.fullName}`}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </>
+                        ) : null}
                       </div>
                     </td>
                   </tr>
@@ -304,12 +424,14 @@ export default function DoctorList() {
                 <Button type="button" variant="outline" onClick={closeDialog}>
                   Close
                 </Button>
-                <Button type="button" onClick={() => openEdit(selectedDoctor)}>
-                  Edit
-                </Button>
+                {canManage ? (
+                  <Button type="button" onClick={() => openEdit(selectedDoctor)}>
+                    Edit
+                  </Button>
+                ) : null}
               </DialogFooter>
             </div>
-          ) : (
+          ) : canManage ? (
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField
@@ -384,9 +506,22 @@ export default function DoctorList() {
                 </DialogFooter>
               </form>
             </Form>
-          )}
+          ) : null}
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Delete doctor"
+        description={
+          pendingDelete
+            ? `Delete ${pendingDelete.fullName}? This cannot be undone.`
+            : ''
+        }
+        loading={deleteMutation.isPending}
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={confirmDelete}
+      />
     </section>
   )
 }

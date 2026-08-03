@@ -123,7 +123,7 @@ export default function LoginForm({ onSubmit, error, isSubmitting }: LoginFormPr
         <Button
           type="submit"
           disabled={isSubmitting}
-          className="h-11 w-full rounded-xl bg-[#005B7F] hover:bg-[#004A68]"
+          className="h-11 w-full rounded-xl bg-[#0F5C66] hover:bg-[#0C4B53]"
         >
           {isSubmitting ? 'Signing in…' : 'Log In'}
           <LogIn className="h-4 w-4" />

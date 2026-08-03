@@ -1,5 +1,5 @@
 ﻿import api from '@/services/axios'
-
+import { markApiLive, markMockFallback } from '@/lib/dataSource'
 export type PatientGender = 'MALE' | 'FEMALE' | 'OTHER'
 
 export type Patient = {
@@ -79,8 +79,10 @@ function normalizeList(data: unknown): Patient[] {
 export async function getPatients(params?: PatientListParams): Promise<Patient[]> {
   try {
     const { data } = await api.get('/patients', { params, timeout: 1500 })
+    markApiLive()
     return normalizeList(data)
   } catch {
+    markMockFallback()
     return filterMockPatients(params?.search)
   }
 }

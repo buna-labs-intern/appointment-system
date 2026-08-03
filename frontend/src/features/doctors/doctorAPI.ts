@@ -1,5 +1,6 @@
 ﻿import api from '@/services/axios'
 
+import { markApiLive, markMockFallback } from '@/lib/dataSource'
 export type Doctor = {
   id: number
   fullName: string
@@ -69,8 +70,10 @@ function normalizeList(data: unknown): Doctor[] {
 export async function getDoctors(params?: DoctorListParams): Promise<Doctor[]> {
   try {
     const { data } = await api.get('/doctors', { params, timeout: 1500 })
+    markApiLive()
     return normalizeList(data)
   } catch {
+    markMockFallback()
     return filterMockDoctors(params?.search)
   }
 }

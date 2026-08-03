@@ -1,8 +1,11 @@
 ﻿import { useMemo, useState } from 'react'
-import { Ban, Pencil, Plus, Search } from 'lucide-react'
+import { Ban, Pencil, Plus, Search, Trash2 } from 'lucide-react'
+import ConfirmDialog from '@/components/common/ConfirmDialog'
+import EmptyState from '@/components/common/EmptyState'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import useAuth from '@/hooks/useAuth'
 import ServiceCards from '@/features/services/ServiceCards'
 import ServiceForm from '@/features/services/ServiceForm'
 import {
@@ -13,12 +16,18 @@ import {
 } from '@/features/services/mockData'
 import type { ServiceFormValues } from '@/features/services/serviceSchema'
 import type { Service } from '@/features/services/types'
+import { toast } from '@/lib/toastStore'
+import { canManageServices } from '@/utils/permissions'
 
 export default function ServiceList() {
+  const { user } = useAuth()
+  const canManage = canManageServices(user?.role)
   const [services, setServices] = useState<Service[]>(mockServices)
   const [search, setSearch] = useState('')
   const [dialogMode, setDialogMode] = useState<'create' | 'edit' | null>(null)
   const [selected, setSelected] = useState<Service | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<Service | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -35,11 +44,13 @@ export default function ServiceList() {
   const stats = useMemo(() => getServiceStats(services), [services])
 
   const openCreate = () => {
+    if (!canManage) return
     setSelected(null)
     setDialogMode('create')
   }
 
   const openEdit = (service: Service) => {
+    if (!canManage) return
     setSelected(service)
     setDialogMode('edit')
   }
@@ -50,44 +61,70 @@ export default function ServiceList() {
   }
 
   const handleCreate = (values: ServiceFormValues) => {
-    const next: Service = {
-      id: crypto.randomUUID(),
-      name: values.name.trim(),
-      code: makeServiceCode(values.name, services),
-      category: values.category.trim(),
-      description: values.description?.trim() || 'No description provided.',
-      price: values.price,
-      duration: values.duration,
-      isActive: values.isActive,
+    setIsSubmitting(true)
+    try {
+      const next: Service = {
+        id: crypto.randomUUID(),
+        name: values.name.trim(),
+        code: makeServiceCode(values.name, services),
+        category: values.category.trim(),
+        description: values.description?.trim() || 'No description provided.',
+        price: values.price,
+        duration: values.duration,
+        isActive: values.isActive,
+      }
+      setServices((prev) => [next, ...prev])
+      toast.success('Service created')
+      closeDialog()
+    } finally {
+      setIsSubmitting(false)
     }
-    setServices((prev) => [next, ...prev])
-    closeDialog()
   }
 
   const handleEdit = (values: ServiceFormValues) => {
     if (!selected) return
-    setServices((prev) =>
-      prev.map((s) =>
-        s.id === selected.id
-          ? {
-              ...s,
-              name: values.name.trim(),
-              category: values.category.trim(),
-              description: values.description?.trim() || 'No description provided.',
-              price: values.price,
-              duration: values.duration,
-              isActive: values.isActive,
-            }
-          : s,
-      ),
-    )
-    closeDialog()
+    setIsSubmitting(true)
+    try {
+      setServices((prev) =>
+        prev.map((s) =>
+          s.id === selected.id
+            ? {
+                ...s,
+                name: values.name.trim(),
+                category: values.category.trim(),
+                description: values.description?.trim() || 'No description provided.',
+                price: values.price,
+                duration: values.duration,
+                isActive: values.isActive,
+              }
+            : s,
+        ),
+      )
+      toast.success('Service updated')
+      closeDialog()
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const toggleActive = (service: Service) => {
+    if (!canManage) return
     setServices((prev) =>
       prev.map((s) => (s.id === service.id ? { ...s, isActive: !s.isActive } : s)),
     )
+    toast.success(service.isActive ? 'Service deactivated' : 'Service activated')
+  }
+
+  const handleDelete = (service: Service) => {
+    if (!canManage) return
+    setPendingDelete(service)
+  }
+
+  const confirmDelete = () => {
+    if (!pendingDelete) return
+    setServices((prev) => prev.filter((s) => s.id !== pendingDelete.id))
+    setPendingDelete(null)
+    toast.success('Service deleted')
   }
 
   return (
@@ -99,10 +136,12 @@ export default function ServiceList() {
             Manage and monitor medical service catalogs and departmental offerings.
           </p>
         </div>
-        <Button onClick={openCreate} className="rounded-lg bg-[#0F5C66] hover:bg-[#0C4B53]">
-          <Plus className="h-4 w-4" />
-          Add New Service
-        </Button>
+        {canManage ? (
+          <Button onClick={openCreate} className="rounded-lg bg-[#0F5C66] hover:bg-[#0C4B53]">
+            <Plus className="h-4 w-4" />
+            Add New Service
+          </Button>
+        ) : null}
       </div>
 
       <ServiceCards stats={stats} />
@@ -138,8 +177,11 @@ export default function ServiceList() {
               <tbody>
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-10 text-center text-muted-foreground">
-                      No services found.
+                    <td colSpan={5}>
+                      <EmptyState
+                        title="No services found"
+                        description="Add a service or clear your search."
+                      />
                     </td>
                   </tr>
                 ) : (
@@ -177,28 +219,40 @@ export default function ServiceList() {
                         </span>
                       </td>
                       <td className="py-4">
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => openEdit(service)}
-                            className="rounded-md p-2 text-[#0F5C66] hover:bg-muted"
-                            aria-label={`Edit ${service.name}`}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => toggleActive(service)}
-                            className="rounded-md p-2 text-rose-600 hover:bg-rose-50"
-                            aria-label={
-                              service.isActive
-                                ? `Deactivate ${service.name}`
-                                : `Activate ${service.name}`
-                            }
-                          >
-                            <Ban className="h-4 w-4" />
-                          </button>
-                        </div>
+                        {canManage ? (
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => openEdit(service)}
+                              className="rounded-md p-2 text-[#0F5C66] hover:bg-muted"
+                              aria-label={`Edit ${service.name}`}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => toggleActive(service)}
+                              className="rounded-md p-2 text-rose-600 hover:bg-rose-50"
+                              aria-label={
+                                service.isActive
+                                  ? `Deactivate ${service.name}`
+                                  : `Activate ${service.name}`
+                              }
+                            >
+                              <Ban className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(service)}
+                              className="rounded-md p-2 text-red-600 hover:bg-red-50"
+                              aria-label={`Delete ${service.name}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">View only</span>
+                        )}
                       </td>
                     </tr>
                   ))
@@ -221,7 +275,7 @@ export default function ServiceList() {
         </CardContent>
       </Card>
 
-      {dialogMode ? (
+      {dialogMode && canManage ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
             <h2 className="text-lg font-semibold text-foreground">
@@ -248,12 +302,25 @@ export default function ServiceList() {
                 }
                 onSubmit={dialogMode === 'create' ? handleCreate : handleEdit}
                 onCancel={closeDialog}
+                isSubmitting={isSubmitting}
                 submitLabel={dialogMode === 'create' ? 'Create service' : 'Save changes'}
               />
             </div>
           </div>
         </div>
       ) : null}
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Delete service"
+        description={
+          pendingDelete
+            ? `Delete service "${pendingDelete.name}"? This cannot be undone.`
+            : ''
+        }
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={confirmDelete}
+      />
     </div>
   )
 }

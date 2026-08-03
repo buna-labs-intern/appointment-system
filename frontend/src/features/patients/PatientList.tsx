@@ -1,9 +1,12 @@
-﻿import { useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router'
 import { z } from 'zod'
 import { Eye, Pencil, Plus, Search, Users } from 'lucide-react'
+import EmptyState from '@/components/common/EmptyState'
+import LoadingState from '@/components/common/LoadingState'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -33,6 +36,7 @@ import {
   type Patient,
   type PatientPayload,
 } from '@/features/patients/patientAPI'
+import { toast } from '@/lib/toastStore'
 
 const patientSchema = z.object({
   fullName: z.string().trim().min(2, 'Full name is required'),
@@ -65,8 +69,13 @@ const genderLabel: Record<Patient['gender'], string> = {
 export default function PatientList() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
-  const [search, setSearch] = useState('')
+  const [searchParams] = useSearchParams()
+  const [search, setSearch] = useState(searchParams.get('q') ?? '')
   const debouncedSearch = useDebounce(search, 300)
+
+  useEffect(() => {
+    setSearch(searchParams.get('q') ?? '')
+  }, [searchParams])
   const [dialogMode, setDialogMode] = useState<DialogMode>(null)
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
   const [formError, setFormError] = useState('')
@@ -88,8 +97,12 @@ export default function PatientList() {
     mutationFn: (payload: PatientPayload) => createPatient(payload),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['patients'] })
+      toast.success('Patient registered')
     },
-    onError: () => setFormError('Could not register patient. Try again.'),
+    onError: () => {
+      setFormError('Could not register patient. Try again.')
+      toast.error('Could not register patient')
+    },
   })
 
   const updateMutation = useMutation({
@@ -97,8 +110,12 @@ export default function PatientList() {
       updatePatient(id, payload),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['patients'] })
+      toast.success('Patient updated')
     },
-    onError: () => setFormError('Could not update patient. Try again.'),
+    onError: () => {
+      setFormError('Could not update patient. Try again.')
+      toast.error('Could not update patient')
+    },
   })
 
   const patients = patientsQuery.data ?? []
@@ -186,7 +203,7 @@ export default function PatientList() {
           </p>
         </div>
         {canManagePatients ? (
-          <Button onClick={openAdd} className="bg-[#005B7F] hover:bg-[#004A68]">
+          <Button onClick={openAdd} className="bg-[#0F5C66] hover:bg-[#0C4B53]">
             <Plus className="h-4 w-4" />
             Register patient
           </Button>
@@ -203,7 +220,57 @@ export default function PatientList() {
         />
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+      <div className="space-y-3 md:hidden">
+        {patientsQuery.isLoading ? (
+          <LoadingState label="Loading patients..." />
+        ) : patients.length === 0 ? (
+          <EmptyState
+            title="No patients found"
+            description="Register a patient or clear your search."
+          />
+        ) : (
+          patients.map((patient) => (
+            <div
+              key={patient.id}
+              className="rounded-xl border border-border bg-card p-4 shadow-sm"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-medium text-foreground">{patient.fullName}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{patient.phone}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {genderLabel[patient.gender]} · {formatDate(patient.dateOfBirth)}
+                  </p>
+                </div>
+                <div className="flex gap-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => openDetails(patient)}
+                    aria-label={`View ${patient.fullName}`}
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                  {canManagePatients ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => openEdit(patient)}
+                      aria-label={`Edit ${patient.fullName}`}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="hidden overflow-hidden rounded-xl border border-border bg-card shadow-sm md:block">
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm">
             <thead className="border-b border-border bg-muted/40 text-muted-foreground">
@@ -218,14 +285,17 @@ export default function PatientList() {
             <tbody>
               {patientsQuery.isLoading ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
-                    Loading patients...
+                  <td colSpan={5}>
+                    <LoadingState label="Loading patients..." />
                   </td>
                 </tr>
               ) : patients.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
-                    No patients found. Register a patient or clear your search.
+                  <td colSpan={5}>
+                    <EmptyState
+                      title="No patients found"
+                      description="Register a patient or clear your search."
+                    />
                   </td>
                 </tr>
               ) : (

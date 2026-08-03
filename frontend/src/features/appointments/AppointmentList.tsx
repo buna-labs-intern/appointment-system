@@ -1,8 +1,8 @@
-﻿import { useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { z } from 'zod'
+import { useSearchParams } from 'react-router'
 import {
   CalendarClock,
   CheckCircle2,
@@ -14,6 +14,8 @@ import {
   UserX,
   XCircle,
 } from 'lucide-react'
+import EmptyState from '@/components/common/EmptyState'
+import LoadingState from '@/components/common/LoadingState'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -37,6 +39,7 @@ import useAuth from '@/hooks/useAuth'
 import useDebounce from '@/hooks/useDebounce'
 import { formatDate } from '@/utils/formatDate'
 import { canManageAppointments } from '@/utils/permissions'
+import { APPOINTMENT_TIME_OPTIONS, todayKey } from '@/utils/clinicHours'
 import { getDoctors } from '@/features/doctors/doctorAPI'
 import { getPatients } from '@/features/patients/patientAPI'
 import { getServices } from '@/features/services/serviceAPI'
@@ -50,24 +53,11 @@ import {
   type AppointmentPayload,
   type AppointmentStatus,
 } from '@/features/appointments/appointmentAPI'
-
-const appointmentSchema = z
-  .object({
-    patientId: z.string().min(1, 'Patient is required'),
-    doctorId: z.string().min(1, 'Doctor is required'),
-    serviceId: z.string().min(1, 'Service is required'),
-    date: z.string().min(1, 'Date is required'),
-    startTime: z.string().min(1, 'Start time is required'),
-    endTime: z.string().min(1, 'End time is required'),
-    reason: z.string().optional(),
-    notes: z.string().optional(),
-  })
-  .refine((values) => values.endTime > values.startTime, {
-    message: 'End time must be after start time',
-    path: ['endTime'],
-  })
-
-type AppointmentFormValues = z.infer<typeof appointmentSchema>
+import {
+  appointmentSchema,
+  type AppointmentFormValues,
+} from '@/features/appointments/appointmentSchema'
+import { toast } from '@/lib/toastStore'
 
 type DialogMode = 'create' | 'edit' | 'reschedule' | 'details' | null
 
@@ -81,23 +71,6 @@ const emptyValues: AppointmentFormValues = {
   reason: '',
   notes: '',
 }
-
-const TIME_OPTIONS = [
-  '09:00',
-  '09:30',
-  '10:00',
-  '10:30',
-  '11:00',
-  '11:30',
-  '13:00',
-  '13:30',
-  '14:00',
-  '14:30',
-  '15:00',
-  '15:30',
-  '16:00',
-  '16:30',
-]
 
 const statusLabel: Record<AppointmentStatus, string> = {
   SCHEDULED: 'Scheduled',
@@ -124,8 +97,14 @@ const selectClassName =
 export default function AppointmentList() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
-  const [search, setSearch] = useState('')
+  const [searchParams] = useSearchParams()
+  const [search, setSearch] = useState(searchParams.get('q') ?? '')
   const debouncedSearch = useDebounce(search, 300)
+
+  useEffect(() => {
+    setSearch(searchParams.get('q') ?? '')
+  }, [searchParams])
+
   const [dialogMode, setDialogMode] = useState<DialogMode>(null)
   const [selected, setSelected] = useState<Appointment | null>(null)
   const [formError, setFormError] = useState('')
@@ -168,8 +147,12 @@ export default function AppointmentList() {
     mutationFn: (payload: AppointmentPayload) => createAppointment(payload),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['appointments'] })
+      toast.success('Appointment created')
     },
-    onError: () => setFormError('Could not create appointment. Try again.'),
+    onError: () => {
+      setFormError('Could not create appointment. Try again.')
+      toast.error('Could not create appointment')
+    },
   })
 
   const updateMutation = useMutation({
@@ -182,8 +165,12 @@ export default function AppointmentList() {
     }) => updateAppointment(id, payload),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['appointments'] })
+      toast.success('Appointment updated')
     },
-    onError: () => setFormError('Could not update appointment. Try again.'),
+    onError: () => {
+      setFormError('Could not update appointment. Try again.')
+      toast.error('Could not update appointment')
+    },
   })
 
   const appointments = appointmentsQuery.data ?? []
@@ -315,7 +302,7 @@ export default function AppointmentList() {
           </p>
         </div>
         {canManage ? (
-          <Button onClick={openCreate} className="bg-[#005B7F] hover:bg-[#004A68]">
+          <Button onClick={openCreate} className="bg-[#0F5C66] hover:bg-[#0C4B53]">
             <Plus className="h-4 w-4" />
             Create appointment
           </Button>
@@ -332,7 +319,118 @@ export default function AppointmentList() {
         />
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+      <div className="space-y-3 md:hidden">
+        {appointmentsQuery.isLoading ? (
+          <LoadingState label="Loading appointments..." />
+        ) : appointments.length === 0 ? (
+          <EmptyState
+            title="No appointments found"
+            description="Create an appointment or clear your search."
+          />
+        ) : (
+          appointments.map((appointment) => (
+            <div
+              key={appointment.id}
+              className="rounded-xl border border-border bg-card p-4 shadow-sm"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-medium text-foreground">{appointment.patientName}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{appointment.doctorName}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {formatDate(appointment.date)} · {appointment.startTime} –{' '}
+                    {appointment.endTime}
+                  </p>
+                  <div className="mt-2">
+                    <Badge variant={statusVariant[appointment.status]}>
+                      {statusLabel[appointment.status]}
+                    </Badge>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => openDetails(appointment)}
+                  aria-label={`View appointment for ${appointment.patientName}`}
+                >
+                  <Eye className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {canManage && appointment.status === 'SCHEDULED' ? (
+                <div className="mt-3 flex flex-wrap gap-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => openEdit(appointment)}
+                    aria-label="Edit appointment"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => openReschedule(appointment)}
+                    aria-label="Reschedule appointment"
+                  >
+                    <CalendarClock className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setStatus(appointment, 'CHECKED_IN')}
+                    disabled={updateMutation.isPending}
+                  >
+                    <UserCheck className="h-3.5 w-3.5" />
+                    Check in
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setStatus(appointment, 'NO_SHOW')}
+                    disabled={updateMutation.isPending}
+                  >
+                    <UserX className="h-3.5 w-3.5" />
+                    No-show
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setStatus(appointment, 'CANCELLED')}
+                    disabled={updateMutation.isPending}
+                  >
+                    <XCircle className="h-3.5 w-3.5" />
+                    Cancel
+                  </Button>
+                </div>
+              ) : null}
+
+              {canManage && appointment.status === 'CHECKED_IN' ? (
+                <div className="mt-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setStatus(appointment, 'COMPLETED')}
+                    disabled={updateMutation.isPending}
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    Complete
+                  </Button>
+                </div>
+              ) : null}
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="hidden overflow-hidden rounded-xl border border-border bg-card shadow-sm md:block">
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm">
             <thead className="border-b border-border bg-muted/40 text-muted-foreground">
@@ -348,14 +446,17 @@ export default function AppointmentList() {
             <tbody>
               {appointmentsQuery.isLoading ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
-                    Loading appointments...
+                  <td colSpan={6}>
+                    <LoadingState label="Loading appointments..." />
                   </td>
                 </tr>
               ) : appointments.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
-                    No appointments found.
+                  <td colSpan={6}>
+                    <EmptyState
+                      title="No appointments found"
+                      description="Create an appointment or clear your search."
+                    />
                   </td>
                 </tr>
               ) : (
@@ -512,7 +613,12 @@ export default function AppointmentList() {
             </div>
           ) : canManage ? (
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <form
+                onSubmit={form.handleSubmit(onSubmit, () => {
+                  toast.error('Please fix the appointment details and try again')
+                })}
+                className="space-y-4"
+              >
                 {dialogMode !== 'reschedule' ? (
                   <>
                     <FormField
@@ -587,7 +693,7 @@ export default function AppointmentList() {
                     <FormItem>
                       <FormLabel>Date</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} />
+                        <Input type="date" min={todayKey()} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -603,7 +709,7 @@ export default function AppointmentList() {
                         <FormLabel>Start time</FormLabel>
                         <FormControl>
                           <select {...field} className={selectClassName}>
-                            {TIME_OPTIONS.map((time) => (
+                            {APPOINTMENT_TIME_OPTIONS.map((time) => (
                               <option key={time} value={time}>
                                 {time}
                               </option>
@@ -623,7 +729,7 @@ export default function AppointmentList() {
                         <FormLabel>End time</FormLabel>
                         <FormControl>
                           <select {...field} className={selectClassName}>
-                            {TIME_OPTIONS.map((time) => (
+                            {APPOINTMENT_TIME_OPTIONS.map((time) => (
                               <option key={time} value={time}>
                                 {time}
                               </option>
@@ -671,6 +777,12 @@ export default function AppointmentList() {
                       )}
                     />
                   </>
+                ) : null}
+
+                {Object.keys(form.formState.errors).length > 0 ? (
+                  <p className="text-sm text-destructive">
+                    Please fix the highlighted fields before saving.
+                  </p>
                 ) : null}
 
                 {formError ? <p className="text-sm text-destructive">{formError}</p> : null}

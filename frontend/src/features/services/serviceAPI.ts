@@ -33,3 +33,6 @@ export async function deactivateService(id: string | number) {
   const { data } = await api.patch<Service>(`/services/${id}/deactivate`)
   return data
 }
+export async function deleteService(id: string | number) {
+  await api.delete(`/services/${id}`)
+}
