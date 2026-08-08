@@ -1,6 +1,7 @@
 import express, { Application, Request, Response } from "express";
 import globalErrorHandler from "./middleware/globalErrorHandler";
 import morganMiddleware from "./middleware/morganMiddleware";
+import doctorRoutes from "./modules/doctor/doctor.routes";
 
 const app = express();
 
@@ -8,6 +9,7 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morganMiddleware);
+app.use("/api/doctors", doctorRoutes);
 
 // Health Check
 app.get("/", (req: Request, res: Response) => {
