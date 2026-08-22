@@ -32,7 +32,7 @@ export class ServiceRepository {
     if (sortBy) {
       orderBy[sortBy] = sortOrder || 'asc';
     } else {
-      orderBy.createdAt = 'desc';
+      orderBy.name = 'asc';
     }
 
     const [data, total] = await Promise.all([

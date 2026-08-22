@@ -2,7 +2,7 @@
 import { Link, useLocation, useNavigate } from 'react-router'
 import { Bell, Menu, Search, Settings, User } from 'lucide-react'
 import useAuth from '@/hooks/useAuth'
-import { getInitials } from '@/features/dashboard/mockData'
+import { getInitials } from '@/features/dashboard/dashboardAPI'
 import {
   getUnreadCount,
   subscribeNotifications,
