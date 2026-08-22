@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   getInitials,
   type RecentAppointment,
-} from '@/features/dashboard/mockData'
+} from '@/features/dashboard/dashboardAPI'
 
 type RecentAppointmentsProps = {
   appointments: RecentAppointment[]
@@ -14,6 +14,7 @@ const statusStyles: Record<RecentAppointment['status'], string> = {
   'Checked In': 'bg-amber-50 text-amber-700',
   Completed: 'bg-emerald-50 text-emerald-700',
   Cancelled: 'bg-rose-50 text-rose-700',
+  'No show': 'bg-slate-100 text-slate-700',
 }
 
 export default function RecentAppointments({ appointments }: RecentAppointmentsProps) {

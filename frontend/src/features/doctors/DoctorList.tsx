@@ -43,7 +43,7 @@ import { toast } from '@/lib/toastStore'
 const doctorSchema = z.object({
   fullName: z.string().trim().min(2, 'Full name is required'),
   specialty: z.string().trim().min(2, 'Specialty is required'),
-  phone: z.string().trim().min(7, 'Enter a valid phone number'),
+  phone: z.string().trim().min(10, 'Phone must be at least 10 characters'),
   isActive: z.boolean(),
 })
 
@@ -98,7 +98,7 @@ export default function DoctorList() {
   })
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: number; payload: Partial<DoctorPayload> }) =>
+    mutationFn: ({ id, payload }: { id: string; payload: Partial<DoctorPayload> }) =>
       updateDoctor(id, payload),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['doctors'] })
@@ -111,7 +111,7 @@ export default function DoctorList() {
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => deleteDoctor(id),
+    mutationFn: (id: string) => deleteDoctor(id),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['doctors'] })
       toast.success('Doctor deleted')
@@ -182,7 +182,12 @@ export default function DoctorList() {
     if (!canManage) return
     updateMutation.mutate({
       id: doctor.id,
-      payload: { isActive: !doctor.isActive },
+      payload: {
+        fullName: doctor.fullName,
+        specialty: doctor.specialty,
+        phone: doctor.phone,
+        isActive: !doctor.isActive,
+      },
     })
   }
 

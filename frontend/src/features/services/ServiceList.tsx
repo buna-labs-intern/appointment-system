@@ -1,19 +1,25 @@
 ﻿import { useMemo, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Ban, Pencil, Plus, Search, Trash2 } from 'lucide-react'
 import ConfirmDialog from '@/components/common/ConfirmDialog'
 import EmptyState from '@/components/common/EmptyState'
+import LoadingState from '@/components/common/LoadingState'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import useAuth from '@/hooks/useAuth'
+import useDebounce from '@/hooks/useDebounce'
 import ServiceCards from '@/features/services/ServiceCards'
 import ServiceForm from '@/features/services/ServiceForm'
+import { getInitials, getServiceStats } from '@/features/services/mockData'
 import {
-  getInitials,
-  getServiceStats,
-  makeServiceCode,
-  mockServices,
-} from '@/features/services/mockData'
+  activateService,
+  createService,
+  deactivateService,
+  deleteService,
+  getServices,
+  updateService,
+} from '@/features/services/serviceAPI'
 import type { ServiceFormValues } from '@/features/services/serviceSchema'
 import type { Service } from '@/features/services/types'
 import { toast } from '@/lib/toastStore'
@@ -21,98 +27,116 @@ import { canManageServices } from '@/utils/permissions'
 
 export default function ServiceList() {
   const { user } = useAuth()
+  const queryClient = useQueryClient()
   const canManage = canManageServices(user?.role)
-  const [services, setServices] = useState<Service[]>(mockServices)
   const [search, setSearch] = useState('')
+  const debouncedSearch = useDebounce(search, 300)
   const [dialogMode, setDialogMode] = useState<'create' | 'edit' | null>(null)
   const [selected, setSelected] = useState<Service | null>(null)
   const [pendingDelete, setPendingDelete] = useState<Service | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [formError, setFormError] = useState('')
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    if (!q) return services
-    return services.filter(
-      (s) =>
-        s.name.toLowerCase().includes(q) ||
-        s.code.toLowerCase().includes(q) ||
-        s.category.toLowerCase().includes(q) ||
-        s.description.toLowerCase().includes(q),
-    )
-  }, [services, search])
+  const servicesQuery = useQuery({
+    queryKey: ['services', debouncedSearch],
+    queryFn: () => getServices({ search: debouncedSearch }),
+  })
 
+  const createMutation = useMutation({
+    mutationFn: (payload: ServiceFormValues) =>
+      createService({
+        name: payload.name.trim(),
+        price: payload.price,
+        duration: payload.duration,
+        isActive: payload.isActive,
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['services'] })
+      toast.success('Service created')
+    },
+    onError: () => {
+      setFormError('Could not create service. Try again.')
+      toast.error('Could not create service')
+    },
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, values }: { id: string; values: ServiceFormValues }) =>
+      updateService(id, {
+        name: values.name.trim(),
+        price: values.price,
+        duration: values.duration,
+        isActive: values.isActive,
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['services'] })
+      toast.success('Service updated')
+    },
+    onError: () => {
+      setFormError('Could not update service. Try again.')
+      toast.error('Could not update service')
+    },
+  })
+
+  const toggleMutation = useMutation({
+    mutationFn: (service: Service) =>
+      service.isActive ? deactivateService(service.id) : activateService(service.id),
+    onSuccess: async (_data, service) => {
+      await queryClient.invalidateQueries({ queryKey: ['services'] })
+      toast.success(service.isActive ? 'Service deactivated' : 'Service activated')
+    },
+    onError: () => toast.error('Could not update service status'),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteService(id),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['services'] })
+      toast.success('Service deleted')
+    },
+    onError: () => toast.error('Could not delete service'),
+  })
+
+  const services = servicesQuery.data ?? []
   const stats = useMemo(() => getServiceStats(services), [services])
+  const isSaving = createMutation.isPending || updateMutation.isPending
 
   const openCreate = () => {
     if (!canManage) return
     setSelected(null)
+    setFormError('')
     setDialogMode('create')
   }
 
   const openEdit = (service: Service) => {
     if (!canManage) return
     setSelected(service)
+    setFormError('')
     setDialogMode('edit')
   }
 
   const closeDialog = () => {
     setDialogMode(null)
     setSelected(null)
+    setFormError('')
   }
 
   const handleCreate = (values: ServiceFormValues) => {
-    setIsSubmitting(true)
-    try {
-      const next: Service = {
-        id: crypto.randomUUID(),
-        name: values.name.trim(),
-        code: makeServiceCode(values.name, services),
-        category: values.category.trim(),
-        description: values.description?.trim() || 'No description provided.',
-        price: values.price,
-        duration: values.duration,
-        isActive: values.isActive,
-      }
-      setServices((prev) => [next, ...prev])
-      toast.success('Service created')
-      closeDialog()
-    } finally {
-      setIsSubmitting(false)
-    }
+    setFormError('')
+    createMutation.mutate(values, { onSuccess: () => closeDialog() })
   }
 
   const handleEdit = (values: ServiceFormValues) => {
     if (!selected) return
-    setIsSubmitting(true)
-    try {
-      setServices((prev) =>
-        prev.map((s) =>
-          s.id === selected.id
-            ? {
-                ...s,
-                name: values.name.trim(),
-                category: values.category.trim(),
-                description: values.description?.trim() || 'No description provided.',
-                price: values.price,
-                duration: values.duration,
-                isActive: values.isActive,
-              }
-            : s,
-        ),
-      )
-      toast.success('Service updated')
-      closeDialog()
-    } finally {
-      setIsSubmitting(false)
-    }
+    setFormError('')
+    updateMutation.mutate(
+      { id: selected.id, values },
+      { onSuccess: () => closeDialog() },
+    )
   }
 
   const toggleActive = (service: Service) => {
     if (!canManage) return
-    setServices((prev) =>
-      prev.map((s) => (s.id === service.id ? { ...s, isActive: !s.isActive } : s)),
-    )
-    toast.success(service.isActive ? 'Service deactivated' : 'Service activated')
+    toggleMutation.mutate(service)
   }
 
   const handleDelete = (service: Service) => {
@@ -122,9 +146,9 @@ export default function ServiceList() {
 
   const confirmDelete = () => {
     if (!pendingDelete) return
-    setServices((prev) => prev.filter((s) => s.id !== pendingDelete.id))
-    setPendingDelete(null)
-    toast.success('Service deleted')
+    deleteMutation.mutate(pendingDelete.id, {
+      onSettled: () => setPendingDelete(null),
+    })
   }
 
   return (
@@ -175,7 +199,13 @@ export default function ServiceList() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.length === 0 ? (
+                {servicesQuery.isLoading ? (
+                  <tr>
+                    <td colSpan={5}>
+                      <LoadingState label="Loading services..." />
+                    </td>
+                  </tr>
+                ) : services.length === 0 ? (
                   <tr>
                     <td colSpan={5}>
                       <EmptyState
@@ -185,7 +215,7 @@ export default function ServiceList() {
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((service) => (
+                  services.map((service) => (
                     <tr key={service.id} className="border-b border-border last:border-0">
                       <td className="py-4">
                         <div className="flex items-center gap-3">
@@ -194,7 +224,9 @@ export default function ServiceList() {
                           </div>
                           <div>
                             <p className="font-medium text-foreground">{service.name}</p>
-                            <p className="text-xs text-muted-foreground">{service.code}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {service.code} · {service.duration} min · ${service.price}
+                            </p>
                           </div>
                         </div>
                       </td>
@@ -232,6 +264,7 @@ export default function ServiceList() {
                             <button
                               type="button"
                               onClick={() => toggleActive(service)}
+                              disabled={toggleMutation.isPending}
                               className="rounded-md p-2 text-rose-600 hover:bg-rose-50"
                               aria-label={
                                 service.isActive
@@ -244,6 +277,7 @@ export default function ServiceList() {
                             <button
                               type="button"
                               onClick={() => handleDelete(service)}
+                              disabled={deleteMutation.isPending}
                               className="rounded-md p-2 text-red-600 hover:bg-red-50"
                               aria-label={`Delete ${service.name}`}
                             >
@@ -263,14 +297,9 @@ export default function ServiceList() {
 
           <div className="mt-4 flex flex-col gap-2 border-t border-border pt-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
             <p>
-              Showing {filtered.length === 0 ? 0 : 1} to {filtered.length} of {filtered.length}{' '}
+              Showing {services.length === 0 ? 0 : 1} to {services.length} of {services.length}{' '}
               services
             </p>
-            <div className="flex items-center gap-2">
-              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#0F5C66] text-xs font-semibold text-white">
-                1
-              </span>
-            </div>
           </div>
         </CardContent>
       </Card>
@@ -302,9 +331,10 @@ export default function ServiceList() {
                 }
                 onSubmit={dialogMode === 'create' ? handleCreate : handleEdit}
                 onCancel={closeDialog}
-                isSubmitting={isSubmitting}
+                isSubmitting={isSaving}
                 submitLabel={dialogMode === 'create' ? 'Create service' : 'Save changes'}
               />
+              {formError ? <p className="mt-3 text-sm text-destructive">{formError}</p> : null}
             </div>
           </div>
         </div>
@@ -318,6 +348,7 @@ export default function ServiceList() {
             ? `Delete service "${pendingDelete.name}"? This cannot be undone.`
             : ''
         }
+        loading={deleteMutation.isPending}
         onCancel={() => setPendingDelete(null)}
         onConfirm={confirmDelete}
       />
