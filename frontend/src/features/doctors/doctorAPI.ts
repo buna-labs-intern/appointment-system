@@ -1,8 +1,9 @@
 ﻿import api from '@/services/axios'
 
-import { markApiLive, markMockFallback } from '@/lib/dataSource'
+import { markApiLive } from '@/lib/dataSource'
+
 export type Doctor = {
-  id: number
+  id: string
   fullName: string
   specialty: string
   phone: string
@@ -20,37 +21,42 @@ export type DoctorListParams = {
   search?: string
 }
 
-/** In-memory fallback when the backend `/doctors` API is unavailable. */
-let mockDoctors: Doctor[] = [
-  {
-    id: 1,
-    fullName: 'Dr. Sara Ahmed',
-    specialty: 'General Practice',
-    phone: '+252 61 111 1111',
-    isActive: true,
-  },
-  {
-    id: 2,
-    fullName: 'Dr. Mohamed Ali',
-    specialty: 'Pediatrics',
-    phone: '+252 61 222 2222',
-    isActive: true,
-  },
-  {
-    id: 3,
-    fullName: 'Dr. Amina Yusuf',
-    specialty: 'Dermatology',
-    phone: '+252 61 333 3333',
-    isActive: false,
-  },
-]
+function normalizeDoctor(raw: unknown): Doctor | null {
+  if (!raw || typeof raw !== 'object') return null
 
-let nextId = 4
+  const item = raw as Record<string, unknown>
+  if (item.data && typeof item.data === 'object' && !Array.isArray(item.data)) {
+    return normalizeDoctor(item.data)
+  }
 
-function filterMockDoctors(search?: string) {
+  if (typeof item.id !== 'string') return null
+
+  return {
+    id: item.id,
+    fullName: String(item.fullName ?? ''),
+    specialty: String(item.specialty ?? ''),
+    phone: String(item.phone ?? ''),
+    isActive: Boolean(item.isActive ?? true),
+  }
+}
+
+function normalizeList(data: unknown): Doctor[] {
+  let items: unknown[] = []
+
+  if (Array.isArray(data)) {
+    items = data
+  } else if (data && typeof data === 'object' && Array.isArray((data as { data?: unknown }).data)) {
+    items = (data as { data: unknown[] }).data
+  }
+
+  return items.map(normalizeDoctor).filter((doctor): doctor is Doctor => doctor !== null)
+}
+
+function filterDoctorsBySearch(doctors: Doctor[], search?: string): Doctor[] {
   const q = search?.trim().toLowerCase()
-  if (!q) return [...mockDoctors]
-  return mockDoctors.filter(
+  if (!q) return doctors
+
+  return doctors.filter(
     (doctor) =>
       doctor.fullName.toLowerCase().includes(q) ||
       doctor.specialty.toLowerCase().includes(q) ||
@@ -58,68 +64,36 @@ function filterMockDoctors(search?: string) {
   )
 }
 
-function normalizeList(data: unknown): Doctor[] {
-  if (Array.isArray(data)) return data as Doctor[]
-  if (data && typeof data === 'object' && Array.isArray((data as { data?: unknown }).data)) {
-    return (data as { data: Doctor[] }).data
-  }
-  return []
-}
-
 /** axios → used by React Query hooks in DoctorList */
 export async function getDoctors(params?: DoctorListParams): Promise<Doctor[]> {
-  try {
-    const { data } = await api.get('/doctors', { params, timeout: 1500 })
-    markApiLive()
-    return normalizeList(data)
-  } catch {
-    markMockFallback()
-    return filterMockDoctors(params?.search)
-  }
+  const { data } = await api.get('/doctors', { timeout: 10000 })
+  markApiLive()
+  return filterDoctorsBySearch(normalizeList(data), params?.search)
 }
 
 export async function getDoctor(id: string | number): Promise<Doctor | null> {
-  try {
-    const { data } = await api.get(`/doctors/${id}`, { timeout: 1500 })
-    return data
-  } catch {
-    return mockDoctors.find((doctor) => doctor.id === Number(id)) ?? null
-  }
+  const { data } = await api.get(`/doctors/${id}`, { timeout: 10000 })
+  return normalizeDoctor(data)
 }
 
 export async function createDoctor(payload: DoctorPayload): Promise<Doctor> {
-  try {
-    const { data } = await api.post('/doctors', payload, { timeout: 1500 })
-    return data
-  } catch {
-    const doctor: Doctor = { id: nextId++, ...payload }
-    mockDoctors = [doctor, ...mockDoctors]
-    return doctor
-  }
+  const { fullName, specialty, phone } = payload
+  const { data } = await api.post('/doctors', { fullName, specialty, phone }, { timeout: 10000 })
+  const doctor = normalizeDoctor(data)
+  if (!doctor) throw new Error('Invalid doctor response')
+  return doctor
 }
 
 export async function updateDoctor(
   id: string | number,
   payload: Partial<DoctorPayload>,
 ): Promise<Doctor> {
-  try {
-    const { data } = await api.put(`/doctors/${id}`, payload, { timeout: 1500 })
-    return data
-  } catch {
-    const index = mockDoctors.findIndex((doctor) => doctor.id === Number(id))
-    if (index === -1) throw new Error('Doctor not found')
-    const updated = { ...mockDoctors[index], ...payload }
-    mockDoctors = [...mockDoctors.slice(0, index), updated, ...mockDoctors.slice(index + 1)]
-    return updated
-  }
+  const { data } = await api.put(`/doctors/${id}`, payload, { timeout: 10000 })
+  const doctor = normalizeDoctor(data)
+  if (!doctor) throw new Error('Invalid doctor response')
+  return doctor
 }
 
 export async function deleteDoctor(id: string | number): Promise<void> {
-  try {
-    await api.delete(`/doctors/${id}`, { timeout: 1500 })
-  } catch {
-    const index = mockDoctors.findIndex((doctor) => doctor.id === Number(id))
-    if (index === -1) throw new Error('Doctor not found')
-    mockDoctors = [...mockDoctors.slice(0, index), ...mockDoctors.slice(index + 1)]
-  }
+  await api.delete(`/doctors/${id}`, { timeout: 10000 })
 }
