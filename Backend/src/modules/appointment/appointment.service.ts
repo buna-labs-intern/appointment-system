@@ -163,7 +163,15 @@ export class AppointmentService {
             }
         }
 
-        return this.repository.update(id, payload);
+        const updateData: Record<string, unknown> = {};
+
+        if (payload.doctorId) updateData.doctorId = payload.doctorId;
+        if (payload.patientId) updateData.patientId = payload.patientId;
+        if (payload.serviceId) updateData.serviceId = payload.serviceId;
+        if (payload.status) updateData.status = payload.status;
+        if (payload.date) updateData.date = new Date(payload.date);
+
+        return this.repository.update(id, updateData);
     }
 
     async cancel(id: string) {

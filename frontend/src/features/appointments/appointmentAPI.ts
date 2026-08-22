@@ -1,4 +1,5 @@
 ﻿import api from '@/services/axios'
+import axios from 'axios'
 import { markApiLive } from '@/lib/dataSource'
 
 export type AppointmentStatus =
@@ -45,6 +46,26 @@ export type AppointmentListParams = {
   search?: string
 }
 
+export type AppointmentPatientOption = {
+  id: string
+  fullName: string
+  phone: string
+}
+
+export function getApiErrorMessage(error: unknown, fallback: string) {
+  if (axios.isAxiosError(error)) {
+    if (error.code === 'ECONNABORTED') {
+      return 'The server is taking too long to respond. Please try again.'
+    }
+
+    const message = error.response?.data?.message
+    if (typeof message === 'string' && message.trim()) return message
+  }
+
+  if (error instanceof Error && error.message.trim()) return error.message
+  return fallback
+}
+
 const APPOINTMENT_STATUSES: AppointmentStatus[] = [
   'SCHEDULED',
   'CHECKED_IN',
@@ -54,7 +75,7 @@ const APPOINTMENT_STATUSES: AppointmentStatus[] = [
 ]
 
 function combineDateAndTime(date: string, time: string) {
-  return `${date}T${time}:00`
+  return new Date(`${date}T${time}:00`).toISOString()
 }
 
 function splitDateTime(iso: string) {
@@ -75,6 +96,46 @@ function addMinutesToTime(time: string, minutes: number) {
   const [hours, mins] = time.split(':').map(Number)
   const total = hours * 60 + mins + minutes
   return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
+}
+
+function normalizePatientOption(raw: unknown): AppointmentPatientOption | null {
+  if (!raw || typeof raw !== 'object') return null
+
+  const item = raw as Record<string, unknown>
+  if (item.data && typeof item.data === 'object' && !Array.isArray(item.data)) {
+    return normalizePatientOption(item.data)
+  }
+
+  const id = typeof item.id === 'string' ? item.id : String(item.id ?? '')
+  if (!id) return null
+
+  return {
+    id,
+    fullName: String(item.fullName ?? 'Unknown patient'),
+    phone: String(item.phone ?? '—'),
+  }
+}
+
+function normalizePatientList(data: unknown): AppointmentPatientOption[] {
+  let items: unknown[] = []
+
+  if (Array.isArray(data)) {
+    items = data
+  } else if (data && typeof data === 'object' && Array.isArray((data as { data?: unknown }).data)) {
+    items = (data as { data: unknown[] }).data
+  }
+
+  return items
+    .map(normalizePatientOption)
+    .filter((patient): patient is AppointmentPatientOption => patient !== null)
+}
+
+export async function getAppointmentPatients(): Promise<AppointmentPatientOption[]> {
+  const { data } = await api.get('/patients', {
+    params: { limit: 100 },
+  })
+  markApiLive()
+  return normalizePatientList(data)
 }
 
 function normalizeAppointment(raw: unknown): Appointment | null {
@@ -162,19 +223,18 @@ export async function getAppointments(
 ): Promise<Appointment[]> {
   const { data } = await api.get('/appointments', {
     params: { limit: 100 },
-    timeout: 10000,
   })
   markApiLive()
   return filterAppointmentsBySearch(normalizeList(data), params?.search)
 }
 
 export async function getAppointment(id: string | number): Promise<Appointment | null> {
-  const { data } = await api.get(`/appointments/${id}`, { timeout: 10000 })
+  const { data } = await api.get(`/appointments/${id}`)
   return normalizeAppointment(data)
 }
 
 export async function createAppointment(payload: AppointmentPayload): Promise<Appointment> {
-  const { data } = await api.post('/appointments', toApiBody(payload), { timeout: 10000 })
+  const { data } = await api.post('/appointments', toApiBody(payload))
   const appointment = normalizeAppointment(data)
   if (!appointment) throw new Error('Invalid appointment response')
   return appointment
@@ -184,16 +244,14 @@ export async function updateAppointment(
   id: string | number,
   payload: Partial<AppointmentPayload>,
 ): Promise<Appointment> {
-  const { data } = await api.patch(`/appointments/${id}`, toApiBody(payload), {
-    timeout: 10000,
-  })
+  const { data } = await api.patch(`/appointments/${id}`, toApiBody(payload))
   const appointment = normalizeAppointment(data)
   if (!appointment) throw new Error('Invalid appointment response')
   return appointment
 }
 
 async function patchStatus(id: string | number, action: string): Promise<Appointment> {
-  const { data } = await api.patch(`/appointments/${id}/${action}`, {}, { timeout: 10000 })
+  const { data } = await api.patch(`/appointments/${id}/${action}`, {})
   const appointment = normalizeAppointment(data)
   if (!appointment) throw new Error('Invalid appointment response')
   return appointment

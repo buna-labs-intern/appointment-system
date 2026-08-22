@@ -39,9 +39,8 @@ import useAuth from '@/hooks/useAuth'
 import useDebounce from '@/hooks/useDebounce'
 import { formatDate } from '@/utils/formatDate'
 import { canManageAppointments } from '@/utils/permissions'
-import { APPOINTMENT_TIME_OPTIONS, todayKey } from '@/utils/clinicHours'
+import { APPOINTMENT_TIME_OPTIONS, getDefaultAppointmentTimes, todayKey } from '@/utils/clinicHours'
 import { getDoctors } from '@/features/doctors/doctorAPI'
-import { getPatients } from '@/features/patients/patientAPI'
 import { getServices } from '@/features/services/serviceAPI'
 import type { Service } from '@/features/services/types'
 import {
@@ -49,6 +48,8 @@ import {
   checkInAppointment,
   completeAppointment,
   createAppointment,
+  getApiErrorMessage,
+  getAppointmentPatients,
   getAppointments,
   noShowAppointment,
   updateAppointment,
@@ -122,7 +123,7 @@ export default function AppointmentList() {
 
   const patientsQuery = useQuery({
     queryKey: ['patients', 'appointment-options'],
-    queryFn: () => getPatients(),
+    queryFn: () => getAppointmentPatients(),
   })
 
   const doctorsQuery = useQuery({
@@ -147,9 +148,10 @@ export default function AppointmentList() {
       await queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       toast.success('Appointment created')
     },
-    onError: () => {
-      setFormError('Could not create appointment. Try again.')
-      toast.error('Could not create appointment')
+    onError: (error) => {
+      const message = getApiErrorMessage(error, 'Could not create appointment. Try again.')
+      setFormError(message)
+      toast.error(message)
     },
   })
 
@@ -166,9 +168,10 @@ export default function AppointmentList() {
       await queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       toast.success('Appointment updated')
     },
-    onError: () => {
-      setFormError('Could not update appointment. Try again.')
-      toast.error('Could not update appointment')
+    onError: (error) => {
+      const message = getApiErrorMessage(error, 'Could not update appointment. Try again.')
+      setFormError(message)
+      toast.error(message)
     },
   })
 
@@ -198,7 +201,8 @@ export default function AppointmentList() {
       await queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       toast.success('Appointment status updated')
     },
-    onError: () => toast.error('Could not update appointment status'),
+    onError: (error) =>
+      toast.error(getApiErrorMessage(error, 'Could not update appointment status')),
   })
 
   const appointments = appointmentsQuery.data ?? []
@@ -220,7 +224,10 @@ export default function AppointmentList() {
     if (!canManage) return
     setSelected(null)
     setFormError('')
-    form.reset(emptyValues)
+    form.reset({
+      ...emptyValues,
+      ...getDefaultAppointmentTimes(),
+    })
     setDialogMode('create')
   }
 
@@ -306,8 +313,19 @@ export default function AppointmentList() {
     }
 
     if ((dialogMode === 'edit' || dialogMode === 'reschedule') && selected) {
+      const updatePayload =
+        dialogMode === 'reschedule'
+          ? {
+              doctorId: selected.doctorId,
+              patientId: selected.patientId,
+              serviceId: selected.serviceId,
+              date: values.date,
+              startTime: values.startTime,
+            }
+          : payload
+
       updateMutation.mutate(
-        { id: selected.id, payload },
+        { id: selected.id, payload: updatePayload },
         { onSuccess: () => closeDialog() },
       )
     }
@@ -660,12 +678,17 @@ export default function AppointmentList() {
                             <select {...field} className={selectClassName}>
                               <option value="">Select patient</option>
                               {patients.map((patient) => (
-                                <option key={patient.id} value={String(patient.id)}>
+                                <option key={patient.id} value={patient.id}>
                                   {patient.fullName} ({patient.phone})
                                 </option>
                               ))}
                             </select>
                           </FormControl>
+                          {patientsQuery.isSuccess && patients.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">
+                              No patients found. Add a patient first.
+                            </p>
+                          ) : null}
                           <FormMessage />
                         </FormItem>
                       )}
