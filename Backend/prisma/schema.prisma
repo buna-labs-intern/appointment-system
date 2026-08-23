@@ -1,0 +1,82 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  RECEPTIONIST
+}
+
+model User {
+  id        String   @id @default(cuid())
+  fullName  String
+  email     String   @unique
+  password  String
+  role      Role     @default(RECEPTIONIST)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Doctor {
+  id        String   @id @default(cuid())
+  fullName  String
+  specialty String
+  phone     String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt @default(now())
+
+  appointments Appointment[]
+}
+
+model Patient {
+  id        String   @id @default(cuid())
+  fullName  String
+  phone     String
+  gender    String
+  birthDate DateTime
+  address   String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt @default(now())
+
+  appointments Appointment[]
+}
+
+model Service {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  price       Float    @default(0)
+  duration    Int      @default(30)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt @default(now())
+
+  appointments Appointment[]
+}
+
+model Appointment {
+  id        String   @id @default(cuid())
+  date      DateTime
+  startTime String?
+  endTime   String?
+  reason    String?
+  notes     String?
+  status    String   @default("SCHEDULED")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt @default(now())
+
+  doctorId  String
+  patientId String
+  serviceId String
+
+  doctor  Doctor  @relation(fields: [doctorId], references: [id])
+  patient Patient @relation(fields: [patientId], references: [id])
+  service Service @relation(fields: [serviceId], references: [id])
+}
