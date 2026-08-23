@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -43,7 +43,7 @@ import { toast } from '@/lib/toastStore'
 const doctorSchema = z.object({
   fullName: z.string().trim().min(2, 'Full name is required'),
   specialty: z.string().trim().min(2, 'Specialty is required'),
-  phone: z.string().trim().min(7, 'Enter a valid phone number'),
+  phone: z.string().trim().min(1, 'Phone number is required'),
   isActive: z.boolean(),
 })
 

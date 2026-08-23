@@ -3,7 +3,7 @@ import { z } from "zod";
 export const createPatientSchema = z.object({
   body: z.object({
     fullName: z.string().min(2, "Full name must be at least 2 characters"),
-    phone: z.string().min(6, "Phone must be at least 6 characters"),
+    phone: z.string().min(1, "Phone number is required"),
     gender: z.string().min(1, "Gender is required"),
     birthDate: z.string().optional(),
     dateOfBirth: z.string().optional(),
@@ -15,7 +15,7 @@ export const createPatientSchema = z.object({
 export const updatePatientSchema = z.object({
   body: z.object({
     fullName: z.string().min(2).optional(),
-    phone: z.string().min(6).optional(),
+    phone: z.string().min(1).optional(),
     gender: z.string().optional(),
     birthDate: z.string().optional(),
     dateOfBirth: z.string().optional(),

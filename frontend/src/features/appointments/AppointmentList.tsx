@@ -43,7 +43,6 @@ import { APPOINTMENT_TIME_OPTIONS, todayKey } from '@/utils/clinicHours'
 import { getDoctors } from '@/features/doctors/doctorAPI'
 import { getPatients } from '@/features/patients/patientAPI'
 import { getServices } from '@/features/services/serviceAPI'
-import { mockServices } from '@/features/services/mockData'
 import type { Service } from '@/features/services/types'
 import {
   createAppointment,
@@ -133,7 +132,7 @@ export default function AppointmentList() {
       try {
         return await getServices()
       } catch {
-        return mockServices
+        return []
       }
     },
   })
@@ -178,7 +177,7 @@ export default function AppointmentList() {
   const appointments = appointmentsQuery.data ?? []
   const patients = patientsQuery.data ?? []
   const doctors = (doctorsQuery.data ?? []).filter((doctor) => doctor.isActive)
-  const services = (servicesQuery.data ?? mockServices).filter((service) => service.isActive)
+  const services = (servicesQuery.data ?? []).filter((service) => service.isActive)
   const isSaving = createMutation.isPending || updateMutation.isPending
 
   const dialogTitle = useMemo(() => {

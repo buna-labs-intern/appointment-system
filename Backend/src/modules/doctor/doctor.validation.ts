@@ -6,7 +6,7 @@ export const createDoctorSchema = z.object({
   body: z.object({
     fullName: z.string().min(2, 'Full name must be at least 2 characters'),
     specialty: z.string().min(2, 'Specialty must be at least 2 characters'),
-    phone: z.string().min(10, 'Phone must be at least 10 characters'),
+    phone: z.string().min(1, 'Phone number is required'),
   }),
 });
 
@@ -15,7 +15,7 @@ export const updateDoctorSchema = z.object({
   body: z.object({
     fullName: z.string().min(2).optional(),
     specialty: z.string().min(2).optional(),
-    phone: z.string().min(10).optional(),
+    phone: z.string().min(1).optional(),
     isActive: z.boolean().optional(),
   }),
 });

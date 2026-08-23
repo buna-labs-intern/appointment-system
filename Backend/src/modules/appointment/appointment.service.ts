@@ -245,7 +245,32 @@ export class AppointmentService {
     if (payload.notes !== undefined) updateData.notes = payload.notes?.trim() || null;
     if (payload.status) updateData.status = payload.status;
 
-    return AppointmentRepository.update(id, updateData);
+    const updated = await AppointmentRepository.update(id, updateData);
+
+    // If status transitioned, emit corresponding notification
+    if (payload.status && payload.status !== existing.status) {
+      if (payload.status === "CHECKED_IN") {
+        NotificationService.createNotification({
+          title: "Patient Checked In",
+          message: `${existing.patient?.fullName || "Patient"} has checked in for appointment with Dr. ${existing.doctor?.fullName || "Doctor"}.`,
+          type: "appointment",
+        });
+      } else if (payload.status === "CANCELLED") {
+        NotificationService.createNotification({
+          title: "Appointment Cancelled",
+          message: `Appointment for ${existing.patient?.fullName || "Patient"} with Dr. ${existing.doctor?.fullName || "Doctor"} was cancelled.`,
+          type: "appointment",
+        });
+      } else if (payload.status === "NO_SHOW") {
+        NotificationService.createNotification({
+          title: "Appointment No-Show",
+          message: `${existing.patient?.fullName || "Patient"} missed scheduled appointment with Dr. ${existing.doctor?.fullName || "Doctor"}.`,
+          type: "alert",
+        });
+      }
+    }
+
+    return updated;
   }
 
   static async cancel(id: string) {
