@@ -7,9 +7,7 @@ import {
   updateAppointmentSchema,
 } from "./appointment.validation";
 
-
 const appointmentRouter = Router();
-
 
 appointmentRouter.post(
   "/",
@@ -25,6 +23,12 @@ appointmentRouter.get(
 appointmentRouter.get(
   "/:id",
   catchAsync(appointmentController.getById)
+);
+
+appointmentRouter.put(
+  "/:id",
+  validateRequest(updateAppointmentSchema),
+  catchAsync(appointmentController.update)
 );
 
 appointmentRouter.patch(

@@ -1,21 +1,28 @@
 import { Link } from 'react-router'
+import { useQuery } from '@tanstack/react-query'
 import { CalendarDays, Plus, UserPlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import useAuth from '@/hooks/useAuth'
 import DashboardCards from '@/features/dashboard/DashboardCards'
 import RecentAppointments from '@/features/dashboard/RecentAppointments'
-import {
-  mockDashboardStats,
-  mockRecentAppointments,
-  mockUrgentTasks,
-} from '@/features/dashboard/mockData'
+import { mockUrgentTasks } from '@/features/dashboard/mockData'
+import { getDashboardData } from '@/features/dashboard/dashboardAPI'
 import { isAdmin } from '@/utils/permissions'
 
 export default function DashboardOverview() {
   const { user } = useAuth()
   const displayName = user?.fullName || user?.email || 'User'
   const adminView = isAdmin(user?.role)
+
+  const { data: dashboardData } = useQuery({
+    queryKey: ['dashboard-data'],
+    queryFn: getDashboardData,
+    refetchInterval: 15000,
+  })
+
+  const stats = dashboardData?.stats
+  const recentAppointments = dashboardData?.recentAppointments || []
 
   if (!adminView) {
     return (
@@ -57,7 +64,7 @@ export default function DashboardOverview() {
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold text-foreground">
-                {mockDashboardStats.todaysAppointments}
+                {stats ? stats.todaysAppointments : 0}
               </p>
               <p className="mt-1 text-sm text-muted-foreground">Scheduled for today</p>
             </CardContent>
@@ -81,7 +88,7 @@ export default function DashboardOverview() {
           </Card>
         </div>
 
-        <RecentAppointments appointments={mockRecentAppointments} />
+        <RecentAppointments appointments={recentAppointments} />
       </div>
     )
   }
@@ -105,9 +112,9 @@ export default function DashboardOverview() {
         </Button>
       </div>
 
-      <DashboardCards stats={mockDashboardStats} />
+      {stats ? <DashboardCards stats={stats} /> : null}
 
-      <RecentAppointments appointments={mockRecentAppointments} />
+      <RecentAppointments appointments={recentAppointments} />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="rounded-xl border-border shadow-sm">
@@ -138,7 +145,7 @@ export default function DashboardOverview() {
           </CardHeader>
           <CardContent>
             <p className="text-4xl font-bold">
-              {mockDashboardStats.clinicHealthScore}{' '}
+              {stats ? stats.clinicHealthScore : 75}{' '}
               <span className="text-2xl font-semibold text-white/80">/ 100</span>
             </p>
             <p className="mt-3 text-sm text-white/80">

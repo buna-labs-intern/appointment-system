@@ -1,29 +1,77 @@
-// src/modules/doctor/doctor.service.ts
 import DoctorRepository from "./doctor.repository";
+import AppError from "../../utils/AppError";
 
 export class DoctorService {
   static async create(data: any) {
-    // ✅ Validate required fields
-    if (!data.fullName) throw new Error("fullName is required");
-    if (!data.specialty) throw new Error("specialty is required");
-    if (!data.phone) throw new Error("phone is required");
+    if (!data.fullName) throw new AppError(400, "Full name is required");
+    if (!data.specialty) throw new AppError(400, "Specialty is required");
+    if (!data.phone) throw new AppError(400, "Phone number is required");
 
-    return await DoctorRepository.create(data);
+    return DoctorRepository.create(data);
   }
 
-  static async getAll() {
-    return await DoctorRepository.findAll();
+  static async getAll(query?: any) {
+    if (!query || Object.keys(query).length === 0) {
+      return DoctorRepository.findAll();
+    }
+
+    const page = Number(query.page) || 1;
+    const limit = Number(query.limit) || 10;
+    const searchTerm = query.search || query.searchTerm;
+    const isActive =
+      query.isActive !== undefined
+        ? query.isActive === "true" || query.isActive === true
+        : undefined;
+    const sortBy = query.sortBy || "createdAt";
+    const sortOrder = query.sortOrder || "desc";
+
+    return DoctorRepository.findAll({
+      page,
+      limit,
+      searchTerm,
+      isActive,
+      sortBy,
+      sortOrder,
+    });
   }
 
   static async getById(id: string) {
-    return await DoctorRepository.findById(id);
+    const doctor = await DoctorRepository.findById(id);
+    if (!doctor) {
+      throw new AppError(404, "Doctor not found");
+    }
+    return doctor;
   }
 
   static async update(id: string, data: any) {
-    return await DoctorRepository.update(id, data);
+    const existing = await DoctorRepository.findById(id);
+    if (!existing) {
+      throw new AppError(404, "Doctor not found");
+    }
+    return DoctorRepository.update(id, data);
+  }
+
+  static async activate(id: string) {
+    const existing = await DoctorRepository.findById(id);
+    if (!existing) {
+      throw new AppError(404, "Doctor not found");
+    }
+    return DoctorRepository.update(id, { isActive: true });
+  }
+
+  static async deactivate(id: string) {
+    const existing = await DoctorRepository.findById(id);
+    if (!existing) {
+      throw new AppError(404, "Doctor not found");
+    }
+    return DoctorRepository.update(id, { isActive: false });
   }
 
   static async delete(id: string) {
-    return await DoctorRepository.delete(id);
+    const existing = await DoctorRepository.findById(id);
+    if (!existing) {
+      throw new AppError(404, "Doctor not found");
+    }
+    return DoctorRepository.delete(id);
   }
 }

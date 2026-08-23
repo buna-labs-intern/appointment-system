@@ -1,5 +1,5 @@
-﻿import api from '@/services/axios'
-import { markApiLive, markMockFallback } from '@/lib/dataSource'
+import api from '@/services/axios'
+
 export type AppointmentStatus =
   | 'SCHEDULED'
   | 'CHECKED_IN'
@@ -8,13 +8,13 @@ export type AppointmentStatus =
   | 'NO_SHOW'
 
 export type Appointment = {
-  id: number
-  patientId: number
+  id: string | number
+  patientId: string | number
   patientName: string
   patientPhone: string
-  doctorId: number
+  doctorId: string | number
   doctorName: string
-  serviceId: string
+  serviceId: string | number
   serviceName: string
   date: string
   startTime: string
@@ -25,12 +25,12 @@ export type Appointment = {
 }
 
 export type AppointmentPayload = {
-  patientId: number
-  doctorId: number
-  serviceId: string
+  patientId: string | number
+  doctorId: string | number
+  serviceId: string | number
   date: string
-  startTime: string
-  endTime: string
+  startTime?: string
+  endTime?: string
   reason?: string
   notes?: string
   status?: AppointmentStatus
@@ -42,170 +42,77 @@ export type AppointmentPayload = {
 
 export type AppointmentListParams = {
   search?: string
-}
-
-/** In-memory fallback when the backend `/appointments` API is unavailable. */
-let mockAppointments: Appointment[] = [
-  {
-    id: 1,
-    patientId: 1,
-    patientName: 'Hassan Omar',
-    patientPhone: '+252 61 444 4444',
-    doctorId: 1,
-    doctorName: 'Dr. Sara Ahmed',
-    serviceId: '1',
-    serviceName: 'General Consultation',
-    date: '2026-07-30',
-    startTime: '09:00',
-    endTime: '09:30',
-    reason: 'General checkup',
-    status: 'SCHEDULED',
-  },
-  {
-    id: 2,
-    patientId: 2,
-    patientName: 'Fadumo Abdi',
-    patientPhone: '+252 61 555 5555',
-    doctorId: 2,
-    doctorName: 'Dr. Mohamed Ali',
-    serviceId: '3',
-    serviceName: 'Pediatrics Consultation',
-    date: '2026-07-30',
-    startTime: '10:00',
-    endTime: '10:30',
-    status: 'CHECKED_IN',
-  },
-  {
-    id: 3,
-    patientId: 3,
-    patientName: 'Yusuf Ismail',
-    patientPhone: '+252 61 666 6666',
-    doctorId: 1,
-    doctorName: 'Dr. Sara Ahmed',
-    serviceId: '2',
-    serviceName: 'Follow-up Consultation',
-    date: '2026-07-29',
-    startTime: '14:00',
-    endTime: '14:15',
-    notes: 'Follow-up after fever',
-    status: 'COMPLETED',
-  },
-  {
-    id: 4,
-    patientId: 2,
-    patientName: 'Fadumo Abdi',
-    patientPhone: '+252 61 555 5555',
-    doctorId: 1,
-    doctorName: 'Dr. Sara Ahmed',
-    serviceId: '5',
-    serviceName: 'Blood Pressure Check',
-    date: '2026-07-28',
-    startTime: '11:00',
-    endTime: '11:10',
-    status: 'CANCELLED',
-  },
-]
-
-let nextId = 5
-
-function filterMockAppointments(search?: string) {
-  const q = search?.trim().toLowerCase()
-  if (!q) return [...mockAppointments]
-  return mockAppointments.filter(
-    (item) =>
-      item.patientName.toLowerCase().includes(q) ||
-      item.patientPhone.toLowerCase().includes(q) ||
-      item.doctorName.toLowerCase().includes(q) ||
-      item.serviceName.toLowerCase().includes(q) ||
-      item.date.includes(q) ||
-      item.status.toLowerCase().replace('_', ' ').includes(q),
-  )
+  status?: string
 }
 
 function normalizeList(data: unknown): Appointment[] {
-  if (Array.isArray(data)) return data as Appointment[]
-  if (data && typeof data === 'object' && Array.isArray((data as { data?: unknown }).data)) {
-    return (data as { data: Appointment[] }).data
+  let list: any[] = []
+  if (Array.isArray(data)) list = data
+  else if (data && typeof data === 'object' && Array.isArray((data as any).data)) {
+    list = (data as any).data
   }
-  return []
+  return list.map((item) => ({
+    id: item.id,
+    patientId: item.patientId,
+    patientName: item.patientName || item.patient?.fullName || `Patient #${item.patientId}`,
+    patientPhone: item.patientPhone || item.patient?.phone || '—',
+    doctorId: item.doctorId,
+    doctorName: item.doctorName || item.doctor?.fullName || `Doctor #${item.doctorId}`,
+    serviceId: item.serviceId,
+    serviceName: item.serviceName || item.service?.name || `Service #${item.serviceId}`,
+    date: item.date ? (typeof item.date === 'string' ? item.date.split('T')[0] : new Date(item.date).toISOString().split('T')[0]) : '',
+    startTime: item.startTime || (item.date ? new Date(item.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : '09:00'),
+    endTime: item.endTime || '09:30',
+    reason: item.reason || undefined,
+    notes: item.notes || undefined,
+    status: item.status || 'SCHEDULED',
+  }))
 }
 
 export async function getAppointments(
   params?: AppointmentListParams,
 ): Promise<Appointment[]> {
   try {
-    const { data } = await api.get('/appointments', { params, timeout: 1500 })
-    markApiLive()
+    const { data } = await api.get('/appointments', { params })
     return normalizeList(data)
   } catch {
-    markMockFallback()
-    return filterMockAppointments(params?.search)
+    return []
   }
 }
 
 export async function getAppointment(id: string | number): Promise<Appointment | null> {
   try {
-    const { data } = await api.get(`/appointments/${id}`, { timeout: 1500 })
-    return data
+    const { data } = await api.get(`/appointments/${id}`)
+    const normalized = normalizeList([data])
+    return normalized[0] ?? null
   } catch {
-    return mockAppointments.find((item) => item.id === Number(id)) ?? null
+    return null
   }
 }
 
 export async function createAppointment(payload: AppointmentPayload): Promise<Appointment> {
-  try {
-    const { data } = await api.post('/appointments', payload, { timeout: 1500 })
-    return data
-  } catch {
-    const appointment: Appointment = {
-      id: nextId++,
-      patientId: payload.patientId,
-      patientName: payload.patientName ?? `Patient #${payload.patientId}`,
-      patientPhone: payload.patientPhone ?? '—',
-      doctorId: payload.doctorId,
-      doctorName: payload.doctorName ?? `Doctor #${payload.doctorId}`,
-      serviceId: payload.serviceId,
-      serviceName: payload.serviceName ?? `Service #${payload.serviceId}`,
-      date: payload.date,
-      startTime: payload.startTime,
-      endTime: payload.endTime,
-      reason: payload.reason?.trim() || undefined,
-      notes: payload.notes?.trim() || undefined,
-      status: payload.status ?? 'SCHEDULED',
-    }
-    mockAppointments = [appointment, ...mockAppointments]
-    return appointment
-  }
+  const { data } = await api.post('/appointments', payload)
+  const normalized = normalizeList([data?.data || data])
+  return normalized[0]
 }
 
 export async function updateAppointment(
   id: string | number,
   payload: Partial<AppointmentPayload>,
 ): Promise<Appointment> {
-  try {
-    const { data } = await api.put(`/appointments/${id}`, payload, { timeout: 1500 })
-    return data
-  } catch {
-    const index = mockAppointments.findIndex((item) => item.id === Number(id))
-    if (index === -1) throw new Error('Appointment not found')
-    const current = mockAppointments[index]
-    const updated: Appointment = {
-      ...current,
-      ...payload,
-      patientName: payload.patientName ?? current.patientName,
-      patientPhone: payload.patientPhone ?? current.patientPhone,
-      doctorName: payload.doctorName ?? current.doctorName,
-      serviceName: payload.serviceName ?? current.serviceName,
-      reason:
-        payload.reason !== undefined ? payload.reason.trim() || undefined : current.reason,
-      notes: payload.notes !== undefined ? payload.notes.trim() || undefined : current.notes,
-      status: payload.status ?? current.status,
-    }
-    mockAppointments = [
-      ...mockAppointments.slice(0, index),
-      updated,
-      ...mockAppointments.slice(index + 1),
-    ]
-    return updated
-  }
+  const { data } = await api.put(`/appointments/${id}`, payload)
+  const normalized = normalizeList([data?.data || data])
+  return normalized[0]
+}
+
+export async function cancelAppointment(id: string | number): Promise<void> {
+  await api.patch(`/appointments/${id}/cancel`, {})
+}
+
+export async function checkInAppointment(id: string | number): Promise<void> {
+  await api.patch(`/appointments/${id}/check-in`, {})
+}
+
+export async function completeAppointment(id: string | number): Promise<void> {
+  await api.patch(`/appointments/${id}/complete`, {})
 }

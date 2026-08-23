@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -149,9 +149,10 @@ export default function AppointmentList() {
       await queryClient.invalidateQueries({ queryKey: ['appointments'] })
       toast.success('Appointment created')
     },
-    onError: () => {
-      setFormError('Could not create appointment. Try again.')
-      toast.error('Could not create appointment')
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message || err?.message || 'Could not create appointment. Try again.'
+      setFormError(msg)
+      toast.error(msg)
     },
   })
 
@@ -160,16 +161,17 @@ export default function AppointmentList() {
       id,
       payload,
     }: {
-      id: number
+      id: string | number
       payload: Partial<AppointmentPayload>
     }) => updateAppointment(id, payload),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['appointments'] })
       toast.success('Appointment updated')
     },
-    onError: () => {
-      setFormError('Could not update appointment. Try again.')
-      toast.error('Could not update appointment')
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message || err?.message || 'Could not update appointment. Try again.'
+      setFormError(msg)
+      toast.error(msg)
     },
   })
 
@@ -243,13 +245,13 @@ export default function AppointmentList() {
   }
 
   function toPayload(values: AppointmentFormValues): AppointmentPayload {
-    const patient = patients.find((item) => item.id === Number(values.patientId))
-    const doctor = doctors.find((item) => item.id === Number(values.doctorId))
-    const service = services.find((item) => item.id === values.serviceId)
+    const patient = patients.find((item) => String(item.id) === String(values.patientId))
+    const doctor = doctors.find((item) => String(item.id) === String(values.doctorId))
+    const service = services.find((item) => String(item.id) === String(values.serviceId))
 
     return {
-      patientId: Number(values.patientId),
-      doctorId: Number(values.doctorId),
+      patientId: values.patientId,
+      doctorId: values.doctorId,
       serviceId: values.serviceId,
       date: values.date,
       startTime: values.startTime,
