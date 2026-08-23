@@ -1,5 +1,6 @@
 // src/modules/patient/patient.service.ts
 import PatientRepository from "./patient.repository";
+import NotificationService from "../notification/notification.service";
 
 export class PatientService {
   static async create(data: any) {
@@ -7,7 +8,15 @@ export class PatientService {
     if (existingPatient) {
       throw new Error('Phone number already exists');
     }
-    return await PatientRepository.create(data);
+    const created = await PatientRepository.create(data);
+
+    NotificationService.createNotification({
+      title: "New Patient Registered",
+      message: `${created.fullName} was registered into the clinic system.`,
+      type: "patient",
+    });
+
+    return created;
   }
 
   static async getAll(options: any) {

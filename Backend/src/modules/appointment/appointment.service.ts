@@ -1,6 +1,7 @@
 import AppError from "../../utils/AppError";
 import prisma from "../../shared/prisma";
 import AppointmentRepository from "./appointment.repository";
+import NotificationService from "../notification/notification.service";
 
 export class AppointmentService {
   private static parseTimeToMinutes(timeStr: string): number {
@@ -153,7 +154,7 @@ export class AppointmentService {
     // Check doctor overlapping appointments
     await this.checkDoctorOverlap(payload.doctorId, fullStartDateTime, startMinutes, endMinutes);
 
-    return AppointmentRepository.create({
+    const created = await AppointmentRepository.create({
       doctorId: payload.doctorId,
       patientId: payload.patientId,
       serviceId: payload.serviceId,
@@ -164,6 +165,15 @@ export class AppointmentService {
       notes: payload.notes?.trim() || null,
       status: payload.status || "SCHEDULED",
     });
+
+    // Automated Notification
+    NotificationService.createNotification({
+      title: "New Appointment Scheduled",
+      message: `${patient.fullName} scheduled with Dr. ${doctor.fullName} on ${fullStartDateTime.toISOString().split("T")[0]} at ${startTimeStr}`,
+      type: "appointment",
+    });
+
+    return created;
   }
 
   static async getById(id: string) {
@@ -246,7 +256,15 @@ export class AppointmentService {
     if (existing.status === "COMPLETED") {
       throw new AppError(400, "Completed appointments cannot be cancelled");
     }
-    return AppointmentRepository.update(id, { status: "CANCELLED" });
+    const updated = await AppointmentRepository.update(id, { status: "CANCELLED" });
+
+    NotificationService.createNotification({
+      title: "Appointment Cancelled",
+      message: `Appointment for ${existing.patient?.fullName || "Patient"} with Dr. ${existing.doctor?.fullName || "Doctor"} was cancelled.`,
+      type: "appointment",
+    });
+
+    return updated;
   }
 
   static async checkIn(id: string) {
@@ -257,7 +275,15 @@ export class AppointmentService {
     if (existing.status === "COMPLETED" || existing.status === "CANCELLED") {
       throw new AppError(400, `Cannot check in an appointment with status ${existing.status}`);
     }
-    return AppointmentRepository.update(id, { status: "CHECKED_IN" });
+    const updated = await AppointmentRepository.update(id, { status: "CHECKED_IN" });
+
+    NotificationService.createNotification({
+      title: "Patient Checked In",
+      message: `${existing.patient?.fullName || "Patient"} has checked in for appointment with Dr. ${existing.doctor?.fullName || "Doctor"}.`,
+      type: "appointment",
+    });
+
+    return updated;
   }
 
   static async complete(id: string) {
@@ -279,7 +305,15 @@ export class AppointmentService {
     if (existing.status === "COMPLETED") {
       throw new AppError(400, "Cannot mark a completed appointment as no-show");
     }
-    return AppointmentRepository.update(id, { status: "NO_SHOW" });
+    const updated = await AppointmentRepository.update(id, { status: "NO_SHOW" });
+
+    NotificationService.createNotification({
+      title: "Appointment No-Show",
+      message: `${existing.patient?.fullName || "Patient"} missed scheduled appointment with Dr. ${existing.doctor?.fullName || "Doctor"}.`,
+      type: "alert",
+    });
+
+    return updated;
   }
 
   static async delete(id: string) {
