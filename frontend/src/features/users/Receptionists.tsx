@@ -1,5 +1,6 @@
-﻿import { useMemo, useState } from 'react'
-import { Ban, Pencil, Plus, Search, Trash2 } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Ban, Check, Pencil, Plus, Search, Trash2 } from 'lucide-react'
 import ConfirmDialog from '@/components/common/ConfirmDialog'
 import EmptyState from '@/components/common/EmptyState'
 import { Button } from '@/components/ui/button'
@@ -8,21 +9,89 @@ import { Input } from '@/components/ui/input'
 import useAuth from '@/hooks/useAuth'
 import ReceptionistCards from '@/features/users/ReceptionistCards'
 import ReceptionistForm from '@/features/users/ReceptionistForm'
-import { getInitials, getReceptionistStats, mockReceptionists } from '@/features/users/mockData'
+import { getInitials } from '@/utils/text'
+import { getReceptionistStats } from '@/features/users/userUtils'
 import type { ReceptionistFormValues } from '@/features/users/receptionistSchema'
 import type { Receptionist } from '@/features/users/types'
+import {
+  getReceptionists,
+  createReceptionist,
+  updateReceptionist,
+  activateReceptionist,
+  deactivateReceptionist,
+  deleteReceptionist,
+} from '@/features/users/userAPI'
 import { toast } from '@/lib/toastStore'
 import { canManageReceptionists } from '@/utils/permissions'
 
 export default function Receptionists() {
   const { user } = useAuth()
   const canManage = canManageReceptionists(user?.role)
-  const [staff, setStaff] = useState<Receptionist[]>(mockReceptionists)
+  const queryClient = useQueryClient()
+
   const [search, setSearch] = useState('')
   const [dialogMode, setDialogMode] = useState<'create' | 'edit' | null>(null)
   const [selected, setSelected] = useState<Receptionist | null>(null)
   const [pendingDelete, setPendingDelete] = useState<Receptionist | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const { data: staff = [] } = useQuery({
+    queryKey: ['receptionists'],
+    queryFn: () => getReceptionists(),
+  })
+
+  const createMutation = useMutation({
+    mutationFn: (values: ReceptionistFormValues) => createReceptionist(values),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['receptionists'] })
+      toast.success('Receptionist added successfully')
+      closeDialog()
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || 'Failed to add receptionist')
+    },
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, values }: { id: string | number; values: ReceptionistFormValues }) =>
+      updateReceptionist(id, values),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['receptionists'] })
+      toast.success('Receptionist updated successfully')
+      closeDialog()
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || 'Failed to update receptionist')
+    },
+  })
+
+  const toggleStatusMutation = useMutation({
+    mutationFn: async (person: Receptionist) => {
+      if (person.isActive) {
+        await deactivateReceptionist(person.id)
+      } else {
+        await activateReceptionist(person.id)
+      }
+    },
+    onSuccess: (_, person) => {
+      queryClient.invalidateQueries({ queryKey: ['receptionists'] })
+      toast.success(person.isActive ? 'Receptionist deactivated' : 'Receptionist activated')
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || 'Failed to update status')
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string | number) => deleteReceptionist(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['receptionists'] })
+      setPendingDelete(null)
+      toast.success('Receptionist deleted')
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || 'Failed to delete receptionist')
+    },
+  })
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -52,53 +121,17 @@ export default function Receptionists() {
   }
 
   const handleCreate = (values: ReceptionistFormValues) => {
-    setIsSubmitting(true)
-    try {
-      const next: Receptionist = {
-        id: crypto.randomUUID(),
-        fullName: values.fullName.trim(),
-        email: values.email.trim().toLowerCase(),
-        role: 'RECEPTIONIST',
-        isActive: values.isActive,
-        joinDate: new Date().toISOString().slice(0, 10),
-      }
-      setStaff((prev) => [next, ...prev])
-      toast.success('Receptionist added')
-      closeDialog()
-    } finally {
-      setIsSubmitting(false)
-    }
+    createMutation.mutate(values)
   }
 
   const handleEdit = (values: ReceptionistFormValues) => {
     if (!selected) return
-    setIsSubmitting(true)
-    try {
-      setStaff((prev) =>
-        prev.map((s) =>
-          s.id === selected.id
-            ? {
-                ...s,
-                fullName: values.fullName.trim(),
-                email: values.email.trim().toLowerCase(),
-                isActive: values.isActive,
-              }
-            : s,
-        ),
-      )
-      toast.success('Receptionist updated')
-      closeDialog()
-    } finally {
-      setIsSubmitting(false)
-    }
+    updateMutation.mutate({ id: selected.id, values })
   }
 
   const toggleActive = (person: Receptionist) => {
     if (!canManage) return
-    setStaff((prev) =>
-      prev.map((s) => (s.id === person.id ? { ...s, isActive: !s.isActive } : s)),
-    )
-    toast.success(person.isActive ? 'Receptionist deactivated' : 'Receptionist activated')
+    toggleStatusMutation.mutate(person)
   }
 
   const handleDelete = (person: Receptionist) => {
@@ -108,10 +141,12 @@ export default function Receptionists() {
 
   const confirmDelete = () => {
     if (!pendingDelete) return
-    setStaff((prev) => prev.filter((s) => s.id !== pendingDelete.id))
-    setPendingDelete(null)
-    toast.success('Receptionist deleted')
+    deleteMutation.mutate(pendingDelete.id)
   }
+
+  const isSubmitting =
+    createMutation.isPending || updateMutation.isPending || toggleStatusMutation.isPending
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -209,26 +244,37 @@ export default function Receptionists() {
                               onClick={() => openEdit(person)}
                               className="rounded-md p-2 text-[#0F5C66] hover:bg-muted"
                               aria-label={`Edit ${person.fullName}`}
+                              title="Edit"
                             >
                               <Pencil className="h-4 w-4" />
                             </button>
                             <button
                               type="button"
                               onClick={() => toggleActive(person)}
-                              className="rounded-md p-2 text-rose-600 hover:bg-rose-50"
+                              className={`rounded-md p-2 ${
+                                person.isActive
+                                  ? 'text-rose-600 hover:bg-rose-50'
+                                  : 'text-emerald-600 hover:bg-emerald-50'
+                              }`}
                               aria-label={
                                 person.isActive
                                   ? `Deactivate ${person.fullName}`
                                   : `Activate ${person.fullName}`
                               }
+                              title={person.isActive ? 'Deactivate' : 'Activate'}
                             >
-                              <Ban className="h-4 w-4" />
+                              {person.isActive ? (
+                                <Ban className="h-4 w-4" />
+                              ) : (
+                                <Check className="h-4 w-4" />
+                              )}
                             </button>
                             <button
                               type="button"
                               onClick={() => handleDelete(person)}
                               className="rounded-md p-2 text-rose-700 hover:bg-rose-50"
                               aria-label={`Delete ${person.fullName}`}
+                              title="Delete"
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>

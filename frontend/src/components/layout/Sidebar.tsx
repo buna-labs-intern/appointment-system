@@ -1,4 +1,4 @@
-﻿import { NavLink } from 'react-router'
+import { NavLink } from 'react-router'
 import {
   BarChart3,
   CalendarDays,
@@ -56,9 +56,11 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         }`}
       >
         <div className="flex items-center gap-3 border-b border-border px-5 py-5">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0F5C66] text-sm font-bold text-white">
-            NC
-          </div>
+          <img
+            src="/nexacare-logo.png"
+            alt="NexaCare Logo"
+            className="h-10 w-10 rounded-lg object-contain bg-white border border-border/60 p-0.5 shadow-sm"
+          />
           <div>
             <p className="text-sm font-semibold text-foreground">NexaCare</p>
             <p className="text-xs text-muted-foreground">Clinic Operations</p>

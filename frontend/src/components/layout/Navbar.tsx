@@ -1,8 +1,8 @@
-﻿import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router'
 import { Bell, Menu, Search, Settings, User } from 'lucide-react'
 import useAuth from '@/hooks/useAuth'
-import { getInitials } from '@/features/dashboard/dashboardAPI'
+import { getInitials } from '@/utils/text'
 import {
   getUnreadCount,
   subscribeNotifications,

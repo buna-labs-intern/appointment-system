@@ -1,34 +1,68 @@
-// src/modules/doctor/doctor.repository.ts
 import prisma from "../../shared/prisma";
+import { SearchOptions } from "../../shared/Types";
+import { calculatePagination, generateSearchCondition } from "../../utils";
 
 export class DoctorRepository {
-  // ✅ Create doctor with correct field names
   async create(data: any) {
-    try {
-      console.log("📥 Repository received:", data);
-      
-      return await prisma.doctor.create({
-        data: {
-          fullName: data.fullName,
-          specialty: data.specialty,
-          phone: data.phone,
-          // isActive defaults to true, no need to include
-        },
+    return prisma.doctor.create({
+      data: {
+        fullName: data.fullName,
+        specialty: data.specialty,
+        phone: data.phone,
+        isActive: data.isActive !== undefined ? data.isActive : true,
+      },
+    });
+  }
+
+  async findAll(options?: SearchOptions & { isActive?: boolean }) {
+    if (!options) {
+      return prisma.doctor.findMany({
+        orderBy: { createdAt: "desc" },
       });
-    } catch (error) {
-      console.error("❌ Repository error:", error);
-      throw error;
     }
+
+    const { page, limit, sortBy, sortOrder, searchTerm, isActive } = options;
+    const { skip, take } = calculatePagination(page, limit);
+
+    const searchCondition = generateSearchCondition(searchTerm, ["fullName", "specialty", "phone"]);
+    const filterCondition: any = {};
+    if (isActive !== undefined) filterCondition.isActive = isActive;
+
+    const where = {
+      ...searchCondition,
+      ...filterCondition,
+    };
+
+    const orderBy: any = {};
+    if (sortBy) {
+      orderBy[sortBy] = sortOrder || "asc";
+    } else {
+      orderBy.createdAt = "desc";
+    }
+
+    const [data, total] = await Promise.all([
+      prisma.doctor.findMany({
+        where,
+        skip,
+        take,
+        orderBy,
+      }),
+      prisma.doctor.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: {
+        page: page || 1,
+        limit: take,
+        total,
+        totalPages: Math.ceil(total / (take || 10)),
+      },
+    };
   }
 
-  // ✅ Get all doctors
-  async findAll() {
-    return await prisma.doctor.findMany();
-  }
-
-  // ✅ Get doctor by ID
   async findById(id: string) {
-    return await prisma.doctor.findUnique({
+    return prisma.doctor.findUnique({
       where: { id },
       include: {
         appointments: true,
@@ -36,22 +70,24 @@ export class DoctorRepository {
     });
   }
 
-  // ✅ Update doctor
   async update(id: string, data: any) {
-    return await prisma.doctor.update({
+    const updateData: any = {};
+    if (data.fullName !== undefined) updateData.fullName = data.fullName;
+    if (data.specialty !== undefined) updateData.specialty = data.specialty;
+    if (data.phone !== undefined) updateData.phone = data.phone;
+    if (data.isActive !== undefined) updateData.isActive = data.isActive;
+
+    return prisma.doctor.update({
       where: { id },
-      data: {
-        fullName: data.fullName,
-        specialty: data.specialty,
-        phone: data.phone,
-        isActive: data.isActive,
-      },
+      data: updateData,
     });
   }
 
-  // ✅ Delete doctor
   async delete(id: string) {
-    return await prisma.doctor.delete({
+    await prisma.appointment.deleteMany({
+      where: { doctorId: id },
+    });
+    return prisma.doctor.delete({
       where: { id },
     });
   }

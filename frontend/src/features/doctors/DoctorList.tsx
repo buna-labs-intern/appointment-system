@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -41,9 +41,14 @@ import {
 import { toast } from '@/lib/toastStore'
 
 const doctorSchema = z.object({
-  fullName: z.string().trim().min(2, 'Full name is required'),
-  specialty: z.string().trim().min(2, 'Specialty is required'),
-  phone: z.string().trim().min(10, 'Phone must be at least 10 characters'),
+  fullName: z.string().trim().min(2, 'Full name is required').max(100, 'Full name cannot exceed 100 characters'),
+  specialty: z.string().trim().min(2, 'Specialty is required').max(100, 'Specialty cannot exceed 100 characters'),
+  phone: z
+    .string()
+    .trim()
+    .min(7, 'Phone number must be at least 7 digits')
+    .max(16, 'Phone number cannot exceed 16 digits')
+    .regex(/^[+]?[0-9\s\-()]+$/, 'Enter a valid phone number'),
   isActive: z.boolean(),
 })
 
@@ -98,7 +103,7 @@ export default function DoctorList() {
   })
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: Partial<DoctorPayload> }) =>
+    mutationFn: ({ id, payload }: { id: number; payload: Partial<DoctorPayload> }) =>
       updateDoctor(id, payload),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['doctors'] })
@@ -111,12 +116,16 @@ export default function DoctorList() {
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => deleteDoctor(id),
+    mutationFn: (id: string | number) => deleteDoctor(id),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['doctors'] })
       toast.success('Doctor deleted')
+      setPendingDelete(null)
     },
-    onError: () => toast.error('Could not delete doctor'),
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message || err?.message || 'Could not delete doctor'
+      toast.error(msg)
+    },
   })
 
   const doctors = doctorsQuery.data ?? []
@@ -182,12 +191,7 @@ export default function DoctorList() {
     if (!canManage) return
     updateMutation.mutate({
       id: doctor.id,
-      payload: {
-        fullName: doctor.fullName,
-        specialty: doctor.specialty,
-        phone: doctor.phone,
-        isActive: !doctor.isActive,
-      },
+      payload: { isActive: !doctor.isActive },
     })
   }
 
@@ -474,7 +478,7 @@ export default function DoctorList() {
                     <FormItem>
                       <FormLabel>Phone number</FormLabel>
                       <FormControl>
-                        <Input placeholder="+252 61 000 0000" {...field} />
+                        <Input placeholder="+252 61 000 0000" maxLength={16} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

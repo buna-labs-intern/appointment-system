@@ -2,12 +2,9 @@ import { Request, Response } from "express";
 import { AppointmentService } from "./appointment.service";
 import sendResponse from "../../utils/sendResponse";
 
-const appointmentService = new AppointmentService();
-
 export class AppointmentController {
   create = async (req: Request, res: Response) => {
-    const result = await appointmentService.create(req.body);
-
+    const result = await AppointmentService.create(req.body);
     sendResponse(res, {
       statusCode: 201,
       success: true,
@@ -17,8 +14,7 @@ export class AppointmentController {
   };
 
   getAll = async (req: Request, res: Response) => {
-    const result = await appointmentService.getAll(req.query);
-
+    const result = await AppointmentService.getAll(req.query);
     sendResponse(res, {
       statusCode: 200,
       success: true,
@@ -29,8 +25,7 @@ export class AppointmentController {
   };
 
   getById = async (req: Request, res: Response) => {
-    const result = await appointmentService.getById(req.params.id as string);
-
+    const result = await AppointmentService.getById(req.params.id as string);
     sendResponse(res, {
       statusCode: 200,
       success: true,
@@ -40,11 +35,10 @@ export class AppointmentController {
   };
 
   update = async (req: Request, res: Response) => {
-    const result = await appointmentService.update(
+    const result = await AppointmentService.update(
       req.params.id as string,
       req.body
     );
-
     sendResponse(res, {
       statusCode: 200,
       success: true,
@@ -54,8 +48,7 @@ export class AppointmentController {
   };
 
   cancel = async (req: Request, res: Response) => {
-    const result = await appointmentService.cancel(req.params.id as string);
-
+    const result = await AppointmentService.cancel(req.params.id as string);
     sendResponse(res, {
       statusCode: 200,
       success: true,
@@ -65,8 +58,7 @@ export class AppointmentController {
   };
 
   checkIn = async (req: Request, res: Response) => {
-    const result = await appointmentService.checkIn(req.params.id as string);
-
+    const result = await AppointmentService.checkIn(req.params.id as string);
     sendResponse(res, {
       statusCode: 200,
       success: true,
@@ -76,8 +68,7 @@ export class AppointmentController {
   };
 
   complete = async (req: Request, res: Response) => {
-    const result = await appointmentService.complete(req.params.id as string);
-
+    const result = await AppointmentService.complete(req.params.id as string);
     sendResponse(res, {
       statusCode: 200,
       success: true,
@@ -87,8 +78,7 @@ export class AppointmentController {
   };
 
   noShow = async (req: Request, res: Response) => {
-    const result = await appointmentService.noShow(req.params.id as string);
-
+    const result = await AppointmentService.noShow(req.params.id as string);
     sendResponse(res, {
       statusCode: 200,
       success: true,
@@ -98,8 +88,7 @@ export class AppointmentController {
   };
 
   delete = async (req: Request, res: Response) => {
-    await appointmentService.delete(req.params.id as string);
-
+    await AppointmentService.delete(req.params.id as string);
     sendResponse(res, {
       statusCode: 200,
       success: true,
@@ -110,5 +99,4 @@ export class AppointmentController {
 }
 
 const appointmentController = new AppointmentController();
-
 export default appointmentController;

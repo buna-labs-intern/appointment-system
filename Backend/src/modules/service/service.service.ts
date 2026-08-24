@@ -1,5 +1,6 @@
 // src/modules/service/service.service.ts
 import ServiceRepository from "./service.repository";
+import NotificationService from "../notification/notification.service";
 
 export class ServiceService {
   // ✅ CREATE
@@ -10,7 +11,14 @@ export class ServiceService {
       throw new Error('Service name already exists');
     }
 
-    return await ServiceRepository.create(data);
+    const created = await ServiceRepository.create(data);
+    NotificationService.createNotification({
+      title: "New Service Added",
+      message: `Service "${created.name}" has been added to the clinic.`,
+      type: "system",
+    });
+
+    return created;
   }
 
   // ✅ GET ALL WITH PAGINATION, SEARCH, FILTER
@@ -45,14 +53,26 @@ export class ServiceService {
 
   // ✅ ACTIVATE
   static async activate(id: string) {
-    await this.getById(id);
-    return await ServiceRepository.activate(id);
+    const service = await this.getById(id);
+    const updated = await ServiceRepository.activate(id);
+    NotificationService.createNotification({
+      title: "Service Activated",
+      message: `Service "${service.name}" is now active and available for booking.`,
+      type: "system",
+    });
+    return updated;
   }
 
   // ✅ DEACTIVATE
   static async deactivate(id: string) {
-    await this.getById(id);
-    return await ServiceRepository.deactivate(id);
+    const service = await this.getById(id);
+    const updated = await ServiceRepository.deactivate(id);
+    NotificationService.createNotification({
+      title: "Service Deactivated",
+      message: `Service "${service.name}" was marked inactive and cannot be booked.`,
+      type: "system",
+    });
+    return updated;
   }
 
   // ✅ DELETE

@@ -1,128 +1,172 @@
 import prisma from "../../shared/prisma";
+import { calculatePagination } from "../../utils";
 
 export class AppointmentRepository {
-    async create(data: any) {
-        return prisma.appointment.create({
-            data,
-            include: {
-                doctor: true,
-                patient: true,
-                service: true,
+  async create(data: any) {
+    return prisma.appointment.create({
+      data,
+      include: {
+        doctor: true,
+        patient: true,
+        service: true,
+      },
+    });
+  }
+
+  async findById(id: string) {
+    return prisma.appointment.findUnique({
+      where: { id },
+      include: {
+        doctor: true,
+        patient: true,
+        service: true,
+      },
+    });
+  }
+
+  async update(id: string, data: any) {
+    return prisma.appointment.update({
+      where: { id },
+      data,
+      include: {
+        doctor: true,
+        patient: true,
+        service: true,
+      },
+    });
+  }
+
+  async delete(id: string) {
+    return prisma.appointment.delete({
+      where: { id },
+    });
+  }
+
+  async getAll(
+    page: number = 1,
+    limit: number = 10,
+    search?: string,
+    status?: string,
+    doctorId?: string,
+    patientId?: string,
+    date?: string
+  ) {
+    const { skip, take } = calculatePagination(page, limit);
+    const where: any = {};
+
+    if (status) {
+      where.status = status;
+    }
+
+    if (doctorId) {
+      where.doctorId = doctorId;
+    }
+
+    if (patientId) {
+      where.patientId = patientId;
+    }
+
+    if (date) {
+      const searchDate = new Date(date);
+      const startOfDay = new Date(searchDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(searchDate);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      where.date = {
+        gte: startOfDay,
+        lte: endOfDay,
+      };
+    }
+
+    if (search) {
+      where.OR = [
+        {
+          patient: {
+            fullName: {
+              contains: search,
+              mode: "insensitive",
             },
-        });
-    }
-
-    async findById(id: string) {
-        return prisma.appointment.findUnique({
-            where: { id },
-            include: {
-                doctor: true,
-                patient: true,
-                service: true,
+          },
+        },
+        {
+          patient: {
+            phone: {
+              contains: search,
+              mode: "insensitive",
             },
-        });
-    }
-
-    async update(id: string, data: any) {
-        return prisma.appointment.update({
-            where: { id },
-            data,
-            include: {
-                doctor: true,
-                patient: true,
-                service: true,
+          },
+        },
+        {
+          doctor: {
+            fullName: {
+              contains: search,
+              mode: "insensitive",
             },
-        });
-    }
-
-    async delete(id: string) {
-        return prisma.appointment.delete({
-            where: { id },
-        });
-    }
-
-    async getAll(
-        page: number,
-        limit: number,
-        search?: string,
-        status?: string
-    ) {
-        const skip = (page - 1) * limit;
-
-        const where: any = {};
-
-        if (status) {
-            where.status = status;
-        }
-
-        if (search) {
-            where.OR = [
-                {
-                    patient: {
-                        fullName: {
-                            contains: search,
-                            mode: "insensitive",
-                        },
-                    },
-                },
-                {
-                    doctor: {
-                        fullName: {
-                            contains: search,
-                            mode: "insensitive",
-                        },
-                    },
-                },
-            ];
-        }
-
-        const [appointments, total] = await Promise.all([
-            prisma.appointment.findMany({
-                where,
-                skip,
-                take: limit,
-                orderBy: {
-                    date: "desc",
-                },
-                include: {
-                    doctor: true,
-                    patient: true,
-                    service: true,
-                },
-            }),
-
-            prisma.appointment.count({ where }),
-        ]);
-
-        return {
-            meta: {
-                page,
-                limit,
-                total,
-                totalPage: Math.ceil(total / limit),
+          },
+        },
+        {
+          service: {
+            name: {
+              contains: search,
+              mode: "insensitive",
             },
-            data: appointments,
-        };
+          },
+        },
+      ];
     }
 
-    async findConflict(
-        doctorId: string,
-        appointmentDate: Date,
-        appointmentId?: string
-    ) {
-        return prisma.appointment.findFirst({
-            where: {
-                doctorId,
-                date: appointmentDate,
-                id: appointmentId
-                    ? {
-                        not: appointmentId,
-                    }
-                    : undefined,
-                status: {
-                    not: "CANCELLED",
-                },
-            },
-        });
-    }
+    const [appointments, total] = await Promise.all([
+      prisma.appointment.findMany({
+        where,
+        skip,
+        take,
+        orderBy: {
+          date: "desc",
+        },
+        include: {
+          doctor: true,
+          patient: true,
+          service: true,
+        },
+      }),
+      prisma.appointment.count({ where }),
+    ]);
+
+    return {
+      data: appointments,
+      meta: {
+        page: page || 1,
+        limit: take,
+        total,
+        totalPages: Math.ceil(total / (take || 10)),
+      },
+    };
+  }
+
+  async findDoctorAppointmentsOnDate(doctorId: string, date: Date, excludeId?: string) {
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    return prisma.appointment.findMany({
+      where: {
+        doctorId,
+        date: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+        status: {
+          not: "CANCELLED",
+        },
+        id: excludeId ? { not: excludeId } : undefined,
+      },
+      include: {
+        service: true,
+      },
+    });
+  }
 }
+
+export default new AppointmentRepository();

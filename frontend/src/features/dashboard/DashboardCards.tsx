@@ -1,6 +1,6 @@
 import { CalendarDays, Stethoscope, Users } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import type { DashboardStats } from '@/features/dashboard/dashboardAPI'
+import type { DashboardStats } from '@/features/dashboard/types'
 
 type DashboardCardsProps = {
   stats: DashboardStats

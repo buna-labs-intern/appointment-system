@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -39,19 +39,14 @@ import useAuth from '@/hooks/useAuth'
 import useDebounce from '@/hooks/useDebounce'
 import { formatDate } from '@/utils/formatDate'
 import { canManageAppointments } from '@/utils/permissions'
-import { APPOINTMENT_TIME_OPTIONS, getDefaultAppointmentTimes, todayKey } from '@/utils/clinicHours'
+import { APPOINTMENT_TIME_OPTIONS, todayKey } from '@/utils/clinicHours'
 import { getDoctors } from '@/features/doctors/doctorAPI'
+import { getPatients } from '@/features/patients/patientAPI'
 import { getServices } from '@/features/services/serviceAPI'
 import type { Service } from '@/features/services/types'
 import {
-  cancelAppointment,
-  checkInAppointment,
-  completeAppointment,
   createAppointment,
-  getApiErrorMessage,
-  getAppointmentPatients,
   getAppointments,
-  noShowAppointment,
   updateAppointment,
   type Appointment,
   type AppointmentPayload,
@@ -123,7 +118,7 @@ export default function AppointmentList() {
 
   const patientsQuery = useQuery({
     queryKey: ['patients', 'appointment-options'],
-    queryFn: () => getAppointmentPatients(),
+    queryFn: () => getPatients(),
   })
 
   const doctorsQuery = useQuery({
@@ -133,7 +128,13 @@ export default function AppointmentList() {
 
   const servicesQuery = useQuery({
     queryKey: ['services', 'appointment-options'],
-    queryFn: (): Promise<Service[]> => getServices(),
+    queryFn: async (): Promise<Service[]> => {
+      try {
+        return await getServices()
+      } catch {
+        return []
+      }
+    },
   })
 
   const form = useForm<AppointmentFormValues>({
@@ -145,13 +146,12 @@ export default function AppointmentList() {
     mutationFn: (payload: AppointmentPayload) => createAppointment(payload),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['appointments'] })
-      await queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       toast.success('Appointment created')
     },
-    onError: (error) => {
-      const message = getApiErrorMessage(error, 'Could not create appointment. Try again.')
-      setFormError(message)
-      toast.error(message)
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message || err?.message || 'Could not create appointment. Try again.'
+      setFormError(msg)
+      toast.error(msg)
     },
   })
 
@@ -160,49 +160,18 @@ export default function AppointmentList() {
       id,
       payload,
     }: {
-      id: string
+      id: string | number
       payload: Partial<AppointmentPayload>
     }) => updateAppointment(id, payload),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['appointments'] })
-      await queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       toast.success('Appointment updated')
     },
-    onError: (error) => {
-      const message = getApiErrorMessage(error, 'Could not update appointment. Try again.')
-      setFormError(message)
-      toast.error(message)
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message || err?.message || 'Could not update appointment. Try again.'
+      setFormError(msg)
+      toast.error(msg)
     },
-  })
-
-  const statusMutation = useMutation({
-    mutationFn: ({
-      id,
-      status,
-    }: {
-      id: string
-      status: AppointmentStatus
-    }) => {
-      switch (status) {
-        case 'CHECKED_IN':
-          return checkInAppointment(id)
-        case 'COMPLETED':
-          return completeAppointment(id)
-        case 'CANCELLED':
-          return cancelAppointment(id)
-        case 'NO_SHOW':
-          return noShowAppointment(id)
-        default:
-          throw new Error('Unsupported status change')
-      }
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['appointments'] })
-      await queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-      toast.success('Appointment status updated')
-    },
-    onError: (error) =>
-      toast.error(getApiErrorMessage(error, 'Could not update appointment status')),
   })
 
   const appointments = appointmentsQuery.data ?? []
@@ -210,7 +179,6 @@ export default function AppointmentList() {
   const doctors = (doctorsQuery.data ?? []).filter((doctor) => doctor.isActive)
   const services = (servicesQuery.data ?? []).filter((service) => service.isActive)
   const isSaving = createMutation.isPending || updateMutation.isPending
-  const isUpdatingStatus = statusMutation.isPending
 
   const dialogTitle = useMemo(() => {
     if (dialogMode === 'create') return 'Create appointment'
@@ -224,10 +192,7 @@ export default function AppointmentList() {
     if (!canManage) return
     setSelected(null)
     setFormError('')
-    form.reset({
-      ...emptyValues,
-      ...getDefaultAppointmentTimes(),
-    })
+    form.reset(emptyValues)
     setDialogMode('create')
   }
 
@@ -279,9 +244,9 @@ export default function AppointmentList() {
   }
 
   function toPayload(values: AppointmentFormValues): AppointmentPayload {
-    const patient = patients.find((item) => String(item.id) === values.patientId)
-    const doctor = doctors.find((item) => item.id === values.doctorId)
-    const service = services.find((item) => item.id === values.serviceId)
+    const patient = patients.find((item) => String(item.id) === String(values.patientId))
+    const doctor = doctors.find((item) => String(item.id) === String(values.doctorId))
+    const service = services.find((item) => String(item.id) === String(values.serviceId))
 
     return {
       patientId: values.patientId,
@@ -313,19 +278,8 @@ export default function AppointmentList() {
     }
 
     if ((dialogMode === 'edit' || dialogMode === 'reschedule') && selected) {
-      const updatePayload =
-        dialogMode === 'reschedule'
-          ? {
-              doctorId: selected.doctorId,
-              patientId: selected.patientId,
-              serviceId: selected.serviceId,
-              date: values.date,
-              startTime: values.startTime,
-            }
-          : payload
-
       updateMutation.mutate(
-        { id: selected.id, payload: updatePayload },
+        { id: selected.id, payload },
         { onSuccess: () => closeDialog() },
       )
     }
@@ -333,9 +287,9 @@ export default function AppointmentList() {
 
   function setStatus(appointment: Appointment, status: AppointmentStatus) {
     if (!canManage) return
-    statusMutation.mutate({
+    updateMutation.mutate({
       id: appointment.id,
-      status,
+      payload: { status },
     })
   }
 
@@ -430,7 +384,7 @@ export default function AppointmentList() {
                     variant="outline"
                     size="sm"
                     onClick={() => setStatus(appointment, 'CHECKED_IN')}
-                    disabled={isUpdatingStatus}
+                    disabled={updateMutation.isPending}
                   >
                     <UserCheck className="h-3.5 w-3.5" />
                     Check in
@@ -440,7 +394,7 @@ export default function AppointmentList() {
                     variant="outline"
                     size="sm"
                     onClick={() => setStatus(appointment, 'NO_SHOW')}
-                    disabled={isUpdatingStatus}
+                    disabled={updateMutation.isPending}
                   >
                     <UserX className="h-3.5 w-3.5" />
                     No-show
@@ -450,7 +404,7 @@ export default function AppointmentList() {
                     variant="outline"
                     size="sm"
                     onClick={() => setStatus(appointment, 'CANCELLED')}
-                    disabled={isUpdatingStatus}
+                    disabled={updateMutation.isPending}
                   >
                     <XCircle className="h-3.5 w-3.5" />
                     Cancel
@@ -465,7 +419,7 @@ export default function AppointmentList() {
                     variant="outline"
                     size="sm"
                     onClick={() => setStatus(appointment, 'COMPLETED')}
-                    disabled={isUpdatingStatus}
+                    disabled={updateMutation.isPending}
                   >
                     <CheckCircle2 className="h-3.5 w-3.5" />
                     Complete
@@ -565,7 +519,7 @@ export default function AppointmentList() {
                               variant="outline"
                               size="sm"
                               onClick={() => setStatus(appointment, 'CHECKED_IN')}
-                              disabled={isUpdatingStatus}
+                              disabled={updateMutation.isPending}
                             >
                               <UserCheck className="h-3.5 w-3.5" />
                               Check in
@@ -575,7 +529,7 @@ export default function AppointmentList() {
                               variant="outline"
                               size="sm"
                               onClick={() => setStatus(appointment, 'NO_SHOW')}
-                              disabled={isUpdatingStatus}
+                              disabled={updateMutation.isPending}
                             >
                               <UserX className="h-3.5 w-3.5" />
                               No-show
@@ -585,7 +539,7 @@ export default function AppointmentList() {
                               variant="outline"
                               size="sm"
                               onClick={() => setStatus(appointment, 'CANCELLED')}
-                              disabled={isUpdatingStatus}
+                              disabled={updateMutation.isPending}
                             >
                               <XCircle className="h-3.5 w-3.5" />
                               Cancel
@@ -599,7 +553,7 @@ export default function AppointmentList() {
                             variant="outline"
                             size="sm"
                             onClick={() => setStatus(appointment, 'COMPLETED')}
-                            disabled={isUpdatingStatus}
+                            disabled={updateMutation.isPending}
                           >
                             <CheckCircle2 className="h-3.5 w-3.5" />
                             Complete
@@ -684,11 +638,6 @@ export default function AppointmentList() {
                               ))}
                             </select>
                           </FormControl>
-                          {patientsQuery.isSuccess && patients.length === 0 ? (
-                            <p className="text-sm text-muted-foreground">
-                              No patients found. Add a patient first.
-                            </p>
-                          ) : null}
                           <FormMessage />
                         </FormItem>
                       )}

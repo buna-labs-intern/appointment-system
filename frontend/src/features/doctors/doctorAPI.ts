@@ -1,9 +1,7 @@
-﻿import api from '@/services/axios'
-
-import { markApiLive } from '@/lib/dataSource'
+import api from '@/services/axios'
 
 export type Doctor = {
-  id: string
+  id: string | number
   fullName: string
   specialty: string
   phone: string
@@ -21,79 +19,45 @@ export type DoctorListParams = {
   search?: string
 }
 
-function normalizeDoctor(raw: unknown): Doctor | null {
-  if (!raw || typeof raw !== 'object') return null
-
-  const item = raw as Record<string, unknown>
-  if (item.data && typeof item.data === 'object' && !Array.isArray(item.data)) {
-    return normalizeDoctor(item.data)
-  }
-
-  if (typeof item.id !== 'string') return null
-
-  return {
-    id: item.id,
-    fullName: String(item.fullName ?? ''),
-    specialty: String(item.specialty ?? ''),
-    phone: String(item.phone ?? ''),
-    isActive: Boolean(item.isActive ?? true),
-  }
-}
-
 function normalizeList(data: unknown): Doctor[] {
-  let items: unknown[] = []
-
-  if (Array.isArray(data)) {
-    items = data
-  } else if (data && typeof data === 'object' && Array.isArray((data as { data?: unknown }).data)) {
-    items = (data as { data: unknown[] }).data
+  if (Array.isArray(data)) return data as Doctor[]
+  if (data && typeof data === 'object' && Array.isArray((data as { data?: unknown }).data)) {
+    return (data as { data: Doctor[] }).data
   }
-
-  return items.map(normalizeDoctor).filter((doctor): doctor is Doctor => doctor !== null)
+  return []
 }
 
-function filterDoctorsBySearch(doctors: Doctor[], search?: string): Doctor[] {
-  const q = search?.trim().toLowerCase()
-  if (!q) return doctors
-
-  return doctors.filter(
-    (doctor) =>
-      doctor.fullName.toLowerCase().includes(q) ||
-      doctor.specialty.toLowerCase().includes(q) ||
-      doctor.phone.toLowerCase().includes(q),
-  )
-}
-
-/** axios → used by React Query hooks in DoctorList */
 export async function getDoctors(params?: DoctorListParams): Promise<Doctor[]> {
-  const { data } = await api.get('/doctors', { timeout: 10000 })
-  markApiLive()
-  return filterDoctorsBySearch(normalizeList(data), params?.search)
+  try {
+    const { data } = await api.get('/doctors', { params })
+    return normalizeList(data)
+  } catch {
+    return []
+  }
 }
 
 export async function getDoctor(id: string | number): Promise<Doctor | null> {
-  const { data } = await api.get(`/doctors/${id}`, { timeout: 10000 })
-  return normalizeDoctor(data)
+  try {
+    const { data } = await api.get(`/doctors/${id}`)
+    return data?.data || data
+  } catch {
+    return null
+  }
 }
 
 export async function createDoctor(payload: DoctorPayload): Promise<Doctor> {
-  const { fullName, specialty, phone } = payload
-  const { data } = await api.post('/doctors', { fullName, specialty, phone }, { timeout: 10000 })
-  const doctor = normalizeDoctor(data)
-  if (!doctor) throw new Error('Invalid doctor response')
-  return doctor
+  const { data } = await api.post('/doctors', payload)
+  return data?.data || data
 }
 
 export async function updateDoctor(
   id: string | number,
   payload: Partial<DoctorPayload>,
 ): Promise<Doctor> {
-  const { data } = await api.put(`/doctors/${id}`, payload, { timeout: 10000 })
-  const doctor = normalizeDoctor(data)
-  if (!doctor) throw new Error('Invalid doctor response')
-  return doctor
+  const { data } = await api.put(`/doctors/${id}`, payload)
+  return data?.data || data
 }
 
 export async function deleteDoctor(id: string | number): Promise<void> {
-  await api.delete(`/doctors/${id}`, { timeout: 10000 })
+  await api.delete(`/doctors/${id}`)
 }
