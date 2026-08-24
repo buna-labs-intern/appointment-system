@@ -187,7 +187,7 @@ export class AppointmentService {
   static async getAll(query: any) {
     const page = Number(query.page) || 1;
     const limit = Number(query.limit) || 10;
-    const search = query.search || query.searchTerm;
+    const search = query.search || query.searchTerm || query.q;
     const status = query.status;
     const doctorId = query.doctorId;
     const patientId = query.patientId;

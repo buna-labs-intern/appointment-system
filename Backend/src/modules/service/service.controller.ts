@@ -24,7 +24,7 @@ export class ServiceController {
       const options = {
         page: parseInt(req.query.page as string) || 1,
         limit: parseInt(req.query.limit as string) || 10,
-        searchTerm: req.query.searchTerm as string,
+        searchTerm: (req.query.searchTerm || req.query.search || req.query.q) as string,
         sortBy: req.query.sortBy as string,
         sortOrder: req.query.sortOrder as 'asc' | 'desc',
         isActive: req.query.isActive === 'true' ? true : 

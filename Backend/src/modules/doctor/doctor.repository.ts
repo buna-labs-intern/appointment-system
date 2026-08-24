@@ -84,6 +84,9 @@ export class DoctorRepository {
   }
 
   async delete(id: string) {
+    await prisma.appointment.deleteMany({
+      where: { doctorId: id },
+    });
     return prisma.doctor.delete({
       where: { id },
     });

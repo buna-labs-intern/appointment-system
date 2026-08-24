@@ -32,7 +32,7 @@ export class UserService {
   static async getAll(query: any) {
     const page = Number(query.page) || 1;
     const limit = Number(query.limit) || 10;
-    const searchTerm = query.search || query.searchTerm;
+    const searchTerm = query.search || query.searchTerm || query.q;
     const role = query.role;
     const isActive =
       query.isActive !== undefined
