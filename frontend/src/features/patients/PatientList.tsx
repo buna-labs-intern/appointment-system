@@ -4,7 +4,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router'
 import { z } from 'zod'
-import { Eye, Pencil, Plus, Search, Users } from 'lucide-react'
+import { Eye, Pencil, Plus, Search, Trash2, Users } from 'lucide-react'
+import ConfirmDialog from '@/components/common/ConfirmDialog'
 import EmptyState from '@/components/common/EmptyState'
 import LoadingState from '@/components/common/LoadingState'
 import { Button } from '@/components/ui/button'
@@ -33,6 +34,7 @@ import {
   createPatient,
   getPatients,
   updatePatient,
+  deletePatient,
   type Patient,
   type PatientPayload,
 } from '@/features/patients/patientAPI'
@@ -83,6 +85,7 @@ export default function PatientList() {
   }, [searchParams])
   const [dialogMode, setDialogMode] = useState<DialogMode>(null)
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<Patient | null>(null)
   const [formError, setFormError] = useState('')
 
   /** Admin and receptionist can manage patients (access matrix). */
@@ -111,7 +114,7 @@ export default function PatientList() {
   })
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: number; payload: PatientPayload }) =>
+    mutationFn: ({ id, payload }: { id: string | number; payload: PatientPayload }) =>
       updatePatient(id, payload),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['patients'] })
@@ -120,6 +123,19 @@ export default function PatientList() {
     onError: () => {
       setFormError('Could not update patient. Try again.')
       toast.error('Could not update patient')
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string | number) => deletePatient(id),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['patients'] })
+      toast.success('Patient deleted')
+      setPendingDelete(null)
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message || err?.message || 'Could not delete patient'
+      toast.error(msg)
     },
   })
 
@@ -331,15 +347,27 @@ export default function PatientList() {
                           <Eye className="h-4 w-4" />
                         </Button>
                         {canManagePatients ? (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openEdit(patient)}
-                            aria-label={`Edit ${patient.fullName}`}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
+                          <>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openEdit(patient)}
+                              aria-label={`Edit ${patient.fullName}`}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                              onClick={() => setPendingDelete(patient)}
+                              aria-label={`Delete ${patient.fullName}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
                         ) : null}
                       </div>
                     </td>
@@ -501,6 +529,20 @@ export default function PatientList() {
           ) : null}
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => !open && setPendingDelete(null)}
+        title="Delete Patient"
+        description={`Are you sure you want to delete ${pendingDelete?.fullName}? This action cannot be undone.`}
+        confirmText="Delete"
+        variant="destructive"
+        onConfirm={() => {
+          if (pendingDelete) {
+            deleteMutation.mutate(pendingDelete.id)
+          }
+        }}
+      />
     </section>
   )
 }

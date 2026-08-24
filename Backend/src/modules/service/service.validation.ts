@@ -26,6 +26,7 @@ export const getServicesSchema = z.object({
     limit: z.string().optional(),
     search: z.string().optional(),
     searchTerm: z.string().optional(),
+    q: z.string().optional(),
     sortBy: z.string().optional(),
     sortOrder: z.string().optional(),
     isActive: z.string().optional(),

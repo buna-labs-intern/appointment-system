@@ -17,7 +17,7 @@ export class DoctorService {
 
     const page = Number(query.page) || 1;
     const limit = Number(query.limit) || 10;
-    const searchTerm = query.search || query.searchTerm;
+    const searchTerm = query.search || query.searchTerm || query.q;
     const isActive =
       query.isActive !== undefined
         ? query.isActive === "true" || query.isActive === true

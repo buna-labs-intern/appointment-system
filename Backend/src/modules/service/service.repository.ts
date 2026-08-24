@@ -116,6 +116,9 @@ export class ServiceRepository {
   }
 
   async delete(id: string) {
+    await prisma.appointment.deleteMany({
+      where: { serviceId: id },
+    });
     return prisma.service.delete({
       where: { id },
     });

@@ -116,12 +116,16 @@ export default function DoctorList() {
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => deleteDoctor(id),
+    mutationFn: (id: string | number) => deleteDoctor(id),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['doctors'] })
       toast.success('Doctor deleted')
+      setPendingDelete(null)
     },
-    onError: () => toast.error('Could not delete doctor'),
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message || err?.message || 'Could not delete doctor'
+      toast.error(msg)
+    },
   })
 
   const doctors = doctorsQuery.data ?? []
