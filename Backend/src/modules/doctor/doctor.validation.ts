@@ -4,18 +4,27 @@ import { z } from 'zod';
 // ✅ CREATE
 export const createDoctorSchema = z.object({
   body: z.object({
-    fullName: z.string().min(2, 'Full name must be at least 2 characters'),
-    specialty: z.string().min(2, 'Specialty must be at least 2 characters'),
-    phone: z.string().min(1, 'Phone number is required'),
+    fullName: z.string().min(2, 'Full name must be at least 2 characters').max(100, 'Full name cannot exceed 100 characters'),
+    specialty: z.string().min(2, 'Specialty must be at least 2 characters').max(100, 'Specialty cannot exceed 100 characters'),
+    phone: z
+      .string()
+      .min(7, 'Phone number must be at least 7 characters')
+      .max(16, 'Phone number cannot exceed 16 characters')
+      .regex(/^[+]?[0-9\s\-()]+$/, 'Invalid phone number format'),
   }),
 });
 
 // ✅ UPDATE
 export const updateDoctorSchema = z.object({
   body: z.object({
-    fullName: z.string().min(2).optional(),
-    specialty: z.string().min(2).optional(),
-    phone: z.string().min(1).optional(),
+    fullName: z.string().min(2).max(100).optional(),
+    specialty: z.string().min(2).max(100).optional(),
+    phone: z
+      .string()
+      .min(7, 'Phone number must be at least 7 characters')
+      .max(16, 'Phone number cannot exceed 16 characters')
+      .regex(/^[+]?[0-9\s\-()]+$/, 'Invalid phone number format')
+      .optional(),
     isActive: z.boolean().optional(),
   }),
 });

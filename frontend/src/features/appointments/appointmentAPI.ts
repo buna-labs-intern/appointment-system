@@ -116,3 +116,11 @@ export async function checkInAppointment(id: string | number): Promise<void> {
 export async function completeAppointment(id: string | number): Promise<void> {
   await api.patch(`/appointments/${id}/complete`, {})
 }
+
+export async function noShowAppointment(id: string | number): Promise<void> {
+  await api.patch(`/appointments/${id}/no-show`, {})
+}
+
+export async function deleteAppointment(id: string | number): Promise<void> {
+  await api.delete(`/appointments/${id}`)
+}

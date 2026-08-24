@@ -1,9 +1,7 @@
 import { Link } from 'react-router'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  getInitials,
-  type RecentAppointment,
-} from '@/features/dashboard/mockData'
+import { getInitials } from '@/utils/text'
+import type { RecentAppointment } from '@/features/dashboard/types'
 
 type RecentAppointmentsProps = {
   appointments: RecentAppointment[]

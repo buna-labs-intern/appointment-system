@@ -16,7 +16,7 @@ import LoadingState from '@/components/common/LoadingState'
 import { getAppointments, type Appointment } from '@/features/appointments/appointmentAPI'
 import { getDoctors, type Doctor } from '@/features/doctors/doctorAPI'
 import { getPatients } from '@/features/patients/patientAPI'
-import { getInitials } from '@/features/dashboard/mockData'
+import { getInitials } from '@/utils/text'
 
 export type ReportRange = '7d' | '30d' | '90d'
 

@@ -9,7 +9,7 @@ import {
   formatWeekRange,
   getWeekDays,
   toDateKey,
-} from '@/features/schedule/mockData'
+} from '@/features/schedule/scheduleUtils'
 import { SESSION_TIMES, type StaffShift } from '@/features/schedule/types'
 import type { ShiftFormValues } from '@/features/schedule/shiftSchema'
 import { getReceptionists } from '@/features/users/userAPI'

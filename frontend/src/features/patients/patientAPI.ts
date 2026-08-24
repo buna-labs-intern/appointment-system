@@ -81,3 +81,7 @@ export async function updatePatient(
   const normalized = normalizeList([data?.data || data])
   return normalized[0]
 }
+
+export async function deletePatient(id: string | number): Promise<void> {
+  await api.delete(`/patients/${id}`)
+}

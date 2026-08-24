@@ -39,12 +39,17 @@ import {
 import { toast } from '@/lib/toastStore'
 
 const patientSchema = z.object({
-  fullName: z.string().trim().min(2, 'Full name is required'),
-  phone: z.string().trim().min(1, 'Phone number is required'),
+  fullName: z.string().trim().min(2, 'Full name is required').max(100, 'Full name cannot exceed 100 characters'),
+  phone: z
+    .string()
+    .trim()
+    .min(7, 'Phone number must be at least 7 digits')
+    .max(16, 'Phone number cannot exceed 16 digits')
+    .regex(/^[+]?[0-9\s\-()]+$/, 'Enter a valid phone number'),
   gender: z.enum(['MALE', 'FEMALE', 'OTHER']),
   dateOfBirth: z.string().min(1, 'Date of birth is required'),
-  address: z.string().optional(),
-  notes: z.string().optional(),
+  address: z.string().max(255, 'Address cannot exceed 255 characters').optional(),
+  notes: z.string().max(1000, 'Notes cannot exceed 1000 characters').optional(),
 })
 
 type PatientFormValues = z.infer<typeof patientSchema>
@@ -400,7 +405,7 @@ export default function PatientList() {
                     <FormItem>
                       <FormLabel>Phone number</FormLabel>
                       <FormControl>
-                        <Input placeholder="+252 61 000 0000" {...field} />
+                        <Input placeholder="+252 61 000 0000" maxLength={16} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
