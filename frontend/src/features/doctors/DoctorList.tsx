@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -41,9 +41,14 @@ import {
 import { toast } from '@/lib/toastStore'
 
 const doctorSchema = z.object({
-  fullName: z.string().trim().min(2, 'Full name is required'),
-  specialty: z.string().trim().min(2, 'Specialty is required'),
-  phone: z.string().trim().min(7, 'Enter a valid phone number'),
+  fullName: z.string().trim().min(2, 'Full name is required').max(100, 'Full name cannot exceed 100 characters'),
+  specialty: z.string().trim().min(2, 'Specialty is required').max(100, 'Specialty cannot exceed 100 characters'),
+  phone: z
+    .string()
+    .trim()
+    .min(7, 'Phone number must be at least 7 digits')
+    .max(16, 'Phone number cannot exceed 16 digits')
+    .regex(/^[+]?[0-9\s\-()]+$/, 'Enter a valid phone number'),
   isActive: z.boolean(),
 })
 
@@ -469,7 +474,7 @@ export default function DoctorList() {
                     <FormItem>
                       <FormLabel>Phone number</FormLabel>
                       <FormControl>
-                        <Input placeholder="+252 61 000 0000" {...field} />
+                        <Input placeholder="+252 61 000 0000" maxLength={16} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

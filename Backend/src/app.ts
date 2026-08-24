@@ -9,6 +9,8 @@ import patientRoutes from "./modules/patient/patient.route";
 import serviceRoutes from "./modules/service/service.routes";
 import appointmentRoutes from "./modules/appointment/appointment.routes";
 import dashboardRoutes from "./modules/dashboard/dashboard.route";
+import notificationRoutes from "./modules/notification/notification.routes";
+import { authenticate } from "./middleware/authMiddleware";
 
 const app: Application = express();
 
@@ -39,6 +41,7 @@ app.use("/api/patients", patientRoutes);
 app.use("/api/services", serviceRoutes);
 app.use("/api/appointments", appointmentRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/notifications", authenticate, notificationRoutes);
 
 // ✅ Global Error Handler - Always last
 app.use(globalErrorHandler);

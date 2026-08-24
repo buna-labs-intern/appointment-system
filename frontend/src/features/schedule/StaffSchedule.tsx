@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight, Clock3, Plus, ShieldCheck, Users } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import EmptyState from '@/components/common/EmptyState'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -7,19 +8,42 @@ import ShiftForm from '@/features/schedule/shiftForm'
 import {
   formatWeekRange,
   getWeekDays,
-  mockStaffShifts,
   toDateKey,
-} from '@/features/schedule/mockData'
+} from '@/features/schedule/scheduleUtils'
 import { SESSION_TIMES, type StaffShift } from '@/features/schedule/types'
 import type { ShiftFormValues } from '@/features/schedule/shiftSchema'
-import { mockReceptionists } from '@/features/users/mockData'
+import { getReceptionists } from '@/features/users/userAPI'
 import { toast } from '@/lib/toastStore'
+
+const SHIFTS_STORAGE_KEY = 'nexacare_staff_shifts'
+
+function loadShifts(): StaffShift[] {
+  try {
+    const raw = localStorage.getItem(SHIFTS_STORAGE_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
+}
+
+function saveShifts(shifts: StaffShift[]) {
+  try {
+    localStorage.setItem(SHIFTS_STORAGE_KEY, JSON.stringify(shifts))
+  } catch {
+    // ignore
+  }
+}
 
 export default function StaffSchedule() {
   const [anchor, setAnchor] = useState(() => new Date())
-  const [shifts, setShifts] = useState<StaffShift[]>(mockStaffShifts)
+  const [shifts, setShifts] = useState<StaffShift[]>(loadShifts)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const { data: staffList = [] } = useQuery({
+    queryKey: ['receptionists'],
+    queryFn: () => getReceptionists(),
+  })
 
   const weekDays = useMemo(() => getWeekDays(anchor), [anchor])
   const todayKey = toDateKey(new Date())
@@ -34,9 +58,9 @@ export default function StaffSchedule() {
     [shifts, todayKey],
   )
 
-  const staffOptions = mockReceptionists
+  const staffOptions = staffList
     .filter((person) => person.isActive)
-    .map((person) => ({ id: person.id, fullName: person.fullName }))
+    .map((person) => ({ id: String(person.id), fullName: person.fullName }))
 
   const goPrevWeek = () => {
     const d = new Date(anchor)
@@ -53,12 +77,15 @@ export default function StaffSchedule() {
   const goToday = () => setAnchor(new Date())
 
   const handleCreate = (values: ShiftFormValues) => {
-    const person = mockReceptionists.find((r) => r.id === values.receptionistId)
-    if (!person) return
+    const person = staffList.find((r) => String(r.id) === String(values.receptionistId))
+    if (!person) {
+      toast.error('Please select a staff member')
+      return
+    }
 
     const duplicate = shifts.some(
       (s) =>
-        s.receptionistId === person.id &&
+        String(s.receptionistId) === String(person.id) &&
         s.date === values.date &&
         s.session === values.session,
     )
@@ -75,7 +102,7 @@ export default function StaffSchedule() {
       const times = SESSION_TIMES[values.session]
       const next: StaffShift = {
         id: crypto.randomUUID(),
-        receptionistId: person.id,
+        receptionistId: String(person.id),
         receptionistName: person.fullName,
         date: values.date,
         session: values.session,
@@ -85,7 +112,9 @@ export default function StaffSchedule() {
         status: 'Scheduled',
       }
 
-      setShifts((prev) => [next, ...prev])
+      const updated = [next, ...shifts]
+      setShifts(updated)
+      saveShifts(updated)
       toast.success('Shift added')
       setDialogOpen(false)
     } finally {

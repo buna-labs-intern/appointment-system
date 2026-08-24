@@ -1,5 +1,5 @@
 import api from '@/services/axios'
-import type { DashboardStats, RecentAppointment } from './mockData'
+import type { DashboardStats, RecentAppointment } from './types'
 
 export async function getDashboardData(): Promise<{
   stats: DashboardStats

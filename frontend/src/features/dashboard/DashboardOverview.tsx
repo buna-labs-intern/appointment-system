@@ -1,12 +1,12 @@
+import { useMemo } from 'react'
 import { Link } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
-import { CalendarDays, Plus, UserPlus } from 'lucide-react'
+import { CalendarDays, CheckCircle2, Plus, UserPlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import useAuth from '@/hooks/useAuth'
 import DashboardCards from '@/features/dashboard/DashboardCards'
 import RecentAppointments from '@/features/dashboard/RecentAppointments'
-import { mockUrgentTasks } from '@/features/dashboard/mockData'
 import { getDashboardData } from '@/features/dashboard/dashboardAPI'
 import { isAdmin } from '@/utils/permissions'
 
@@ -23,6 +23,21 @@ export default function DashboardOverview() {
 
   const stats = dashboardData?.stats
   const recentAppointments = dashboardData?.recentAppointments || []
+
+  // Derive dynamic tasks from real appointments
+  const urgentTasks = useMemo(() => {
+    const scheduled = recentAppointments.filter(
+      (a) => a.status === 'Scheduled' || a.status === 'SCHEDULED',
+    )
+    if (scheduled.length > 0) {
+      return scheduled.slice(0, 3).map((a) => ({
+        id: a.id,
+        title: `Pending Visit: ${a.patientName}`,
+        detail: `Scheduled with ${a.doctorName} for ${a.serviceName} at ${a.dateTime}.`,
+      }))
+    }
+    return []
+  }, [recentAppointments])
 
   if (!adminView) {
     return (
@@ -75,15 +90,22 @@ export default function DashboardOverview() {
               <CardTitle className="text-base font-semibold">Front-desk tasks</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {mockUrgentTasks.map((task) => (
-                <div
-                  key={task.id}
-                  className="rounded-lg border-l-4 border-[#3482B5] bg-sky-50/70 px-4 py-3"
-                >
-                  <p className="text-sm font-medium text-foreground">{task.title}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">{task.detail}</p>
+              {urgentTasks.length === 0 ? (
+                <div className="flex items-center gap-2.5 py-4 text-emerald-700">
+                  <CheckCircle2 className="h-5 w-5" />
+                  <p className="text-sm font-medium">All front-desk tasks are up to date.</p>
                 </div>
-              ))}
+              ) : (
+                urgentTasks.map((task) => (
+                  <div
+                    key={task.id}
+                    className="rounded-lg border-l-4 border-[#3482B5] bg-sky-50/70 px-4 py-3"
+                  >
+                    <p className="text-sm font-medium text-foreground">{task.title}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{task.detail}</p>
+                  </div>
+                ))
+              )}
             </CardContent>
           </Card>
         </div>
@@ -119,21 +141,34 @@ export default function DashboardOverview() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="rounded-xl border-border shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-base font-semibold">Urgent Tasks</CardTitle>
-            <span className="rounded-full bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700">
-              {mockUrgentTasks.length} pending
-            </span>
+            <CardTitle className="text-base font-semibold">Pending Appointments</CardTitle>
+            {urgentTasks.length > 0 ? (
+              <span className="rounded-full bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700">
+                {urgentTasks.length} pending
+              </span>
+            ) : (
+              <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                All clear
+              </span>
+            )}
           </CardHeader>
           <CardContent className="space-y-3">
-            {mockUrgentTasks.map((task) => (
-              <div
-                key={task.id}
-                className="rounded-lg border-l-4 border-[#3482B5] bg-sky-50/70 px-4 py-3"
-              >
-                <p className="text-sm font-medium text-foreground">{task.title}</p>
-                <p className="mt-1 text-sm text-muted-foreground">{task.detail}</p>
+            {urgentTasks.length === 0 ? (
+              <div className="flex items-center gap-2.5 py-4 text-emerald-700">
+                <CheckCircle2 className="h-5 w-5" />
+                <p className="text-sm font-medium">No pending appointment actions required.</p>
               </div>
-            ))}
+            ) : (
+              urgentTasks.map((task) => (
+                <div
+                  key={task.id}
+                  className="rounded-lg border-l-4 border-[#3482B5] bg-sky-50/70 px-4 py-3"
+                >
+                  <p className="text-sm font-medium text-foreground">{task.title}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{task.detail}</p>
+                </div>
+              ))
+            )}
           </CardContent>
         </Card>
 
@@ -145,7 +180,7 @@ export default function DashboardOverview() {
           </CardHeader>
           <CardContent>
             <p className="text-4xl font-bold">
-              {stats ? stats.clinicHealthScore : 75}{' '}
+              {stats ? stats.clinicHealthScore : 85}{' '}
               <span className="text-2xl font-semibold text-white/80">/ 100</span>
             </p>
             <p className="mt-3 text-sm text-white/80">
