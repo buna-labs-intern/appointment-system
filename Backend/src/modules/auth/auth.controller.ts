@@ -23,4 +23,14 @@ export class AuthController {
       data: user,
     });
   }
+
+  static async changePassword(req: AuthRequest, res: Response) {
+    const result = await AuthService.changePassword(req.user!.id, req.body);
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: result.message,
+      data: result,
+    });
+  }
 }

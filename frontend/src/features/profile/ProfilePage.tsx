@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useMutation } from '@tanstack/react-query'
+import { isAxiosError } from 'axios'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import {
@@ -12,6 +14,7 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { changePasswordRequest } from '@/features/auth/authAPI'
 import useAuth from '@/hooks/useAuth'
 import { canChangeOwnPassword } from '@/utils/permissions'
 
@@ -47,11 +50,33 @@ export default function ProfilePage() {
     },
   })
 
-  function onSubmit(_values: PasswordFormValues) {
+  const changeMutation = useMutation({
+    mutationFn: changePasswordRequest,
+    onSuccess: () => {
+      setError('')
+      setMessage('Password updated successfully.')
+      form.reset()
+    },
+    onError: (err: unknown) => {
+      setMessage('')
+      if (isAxiosError(err)) {
+        setError(
+          (err.response?.data as { message?: string } | undefined)?.message ||
+            'Could not update password.',
+        )
+        return
+      }
+      setError('Could not update password. Please try again.')
+    },
+  })
+
+  function onSubmit(values: PasswordFormValues) {
     setError('')
     setMessage('')
-    setMessage('Password change request saved locally. Connect the API to persist it.')
-    form.reset()
+    changeMutation.mutate({
+      currentPassword: values.currentPassword,
+      newPassword: values.newPassword,
+    })
   }
 
   return (
@@ -77,12 +102,6 @@ export default function ProfilePage() {
           <div className="flex justify-between gap-4">
             <dt className="text-muted-foreground">Role</dt>
             <dd className="font-medium uppercase text-foreground">{user?.role || '—'}</dd>
-          </div>
-          <div className="flex justify-between gap-4">
-            <dt className="text-muted-foreground">Must change password</dt>
-            <dd className="font-medium text-foreground">
-              {user?.mustChangePassword ? 'Yes' : 'No'}
-            </dd>
           </div>
         </dl>
       </div>
@@ -135,8 +154,12 @@ export default function ProfilePage() {
               {error ? <p className="text-sm text-destructive">{error}</p> : null}
               {message ? <p className="text-sm text-emerald-700">{message}</p> : null}
 
-              <Button type="submit" className="bg-[#0F5C66] hover:bg-[#0C4B53]">
-                Update password
+              <Button
+                type="submit"
+                disabled={changeMutation.isPending}
+                className="bg-[#0F5C66] hover:bg-[#0C4B53]"
+              >
+                {changeMutation.isPending ? 'Updating...' : 'Update password'}
               </Button>
             </form>
           </Form>

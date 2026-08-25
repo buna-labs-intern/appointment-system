@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight, Clock3, Plus, ShieldCheck, Users } from 'lucide-react'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import EmptyState from '@/components/common/EmptyState'
+import LoadingState from '@/components/common/LoadingState'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import ShiftForm from '@/features/schedule/shiftForm'
@@ -10,43 +11,51 @@ import {
   getWeekDays,
   toDateKey,
 } from '@/features/schedule/scheduleUtils'
-import { SESSION_TIMES, type StaffShift } from '@/features/schedule/types'
+import { createShift, getShifts } from '@/features/schedule/scheduleAPI'
 import type { ShiftFormValues } from '@/features/schedule/shiftSchema'
 import { getReceptionists } from '@/features/users/userAPI'
+import useAuth from '@/hooks/useAuth'
 import { toast } from '@/lib/toastStore'
-
-const SHIFTS_STORAGE_KEY = 'nexacare_staff_shifts'
-
-function loadShifts(): StaffShift[] {
-  try {
-    const raw = localStorage.getItem(SHIFTS_STORAGE_KEY)
-    return raw ? JSON.parse(raw) : []
-  } catch {
-    return []
-  }
-}
-
-function saveShifts(shifts: StaffShift[]) {
-  try {
-    localStorage.setItem(SHIFTS_STORAGE_KEY, JSON.stringify(shifts))
-  } catch {
-    // ignore
-  }
-}
+import { isAdmin } from '@/utils/permissions'
 
 export default function StaffSchedule() {
+  const { user } = useAuth()
+  const canManage = isAdmin(user?.role)
+  const queryClient = useQueryClient()
   const [anchor, setAnchor] = useState(() => new Date())
-  const [shifts, setShifts] = useState<StaffShift[]>(loadShifts)
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-
-  const { data: staffList = [] } = useQuery({
-    queryKey: ['receptionists'],
-    queryFn: () => getReceptionists(),
-  })
 
   const weekDays = useMemo(() => getWeekDays(anchor), [anchor])
   const todayKey = toDateKey(new Date())
+  const from = toDateKey(weekDays[0])
+  const to = toDateKey(weekDays[weekDays.length - 1])
+
+  const { data: staffList = [] } = useQuery({
+    queryKey: ['receptionists'],
+    queryFn: () => getReceptionists({ limit: 100, role: 'RECEPTIONIST' }),
+  })
+
+  const shiftsQuery = useQuery({
+    queryKey: ['schedule', from, to],
+    queryFn: () => getShifts({ from, to }),
+  })
+
+  const createMutation = useMutation({
+    mutationFn: createShift,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['schedule'] })
+      toast.success('Shift added')
+      setDialogOpen(false)
+    },
+    onError: (error: unknown) => {
+      const message =
+        (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        'Could not create shift'
+      toast.error(message)
+    },
+  })
+
+  const shifts = shiftsQuery.data ?? []
 
   const weekShifts = useMemo(() => {
     const keys = new Set(weekDays.map(toDateKey))
@@ -77,49 +86,12 @@ export default function StaffSchedule() {
   const goToday = () => setAnchor(new Date())
 
   const handleCreate = (values: ShiftFormValues) => {
-    const person = staffList.find((r) => String(r.id) === String(values.receptionistId))
-    if (!person) {
-      toast.error('Please select a staff member')
-      return
-    }
-
-    const duplicate = shifts.some(
-      (s) =>
-        String(s.receptionistId) === String(person.id) &&
-        s.date === values.date &&
-        s.session === values.session,
-    )
-
-    if (duplicate) {
-      toast.error(
-        `${person.fullName} already has a ${values.session.toLowerCase()} shift on this date`,
-      )
-      return
-    }
-
-    setIsSubmitting(true)
-    try {
-      const times = SESSION_TIMES[values.session]
-      const next: StaffShift = {
-        id: crypto.randomUUID(),
-        receptionistId: String(person.id),
-        receptionistName: person.fullName,
-        date: values.date,
-        session: values.session,
-        startTime: times.start,
-        endTime: times.end,
-        location: values.location.trim(),
-        status: 'Scheduled',
-      }
-
-      const updated = [next, ...shifts]
-      setShifts(updated)
-      saveShifts(updated)
-      toast.success('Shift added')
-      setDialogOpen(false)
-    } finally {
-      setIsSubmitting(false)
-    }
+    createMutation.mutate({
+      receptionistId: values.receptionistId,
+      date: values.date,
+      session: values.session,
+      location: values.location.trim(),
+    })
   }
 
   return (
@@ -160,13 +132,15 @@ export default function StaffSchedule() {
             </button>
           </div>
 
-          <Button
-            onClick={() => setDialogOpen(true)}
-            className="rounded-lg bg-[#0F5C66] hover:bg-[#0C4B53]"
-          >
-            <Plus className="h-4 w-4" />
-            Manage Shifts
-          </Button>
+          {canManage ? (
+            <Button
+              onClick={() => setDialogOpen(true)}
+              className="rounded-lg bg-[#0F5C66] hover:bg-[#0C4B53]"
+            >
+              <Plus className="h-4 w-4" />
+              Manage Shifts
+            </Button>
+          ) : null}
         </div>
       </div>
 
@@ -214,105 +188,120 @@ export default function StaffSchedule() {
         </Card>
       </div>
 
-      <Card className="rounded-xl border-border shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-base font-semibold">Weekly schedule</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-3 md:grid-cols-7">
-            {weekDays.map((day) => {
-              const key = toDateKey(day)
-              const dayShifts = shifts.filter((s) => s.date === key)
+      {shiftsQuery.isLoading ? (
+        <LoadingState label="Loading schedule..." />
+      ) : shiftsQuery.isError ? (
+        <EmptyState
+          title="Could not load schedule"
+          description="Make sure you are logged in and the backend is running."
+        />
+      ) : (
+        <>
+          <Card className="rounded-xl border-border shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-base font-semibold">Weekly schedule</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-3 md:grid-cols-7">
+                {weekDays.map((day) => {
+                  const key = toDateKey(day)
+                  const dayShifts = shifts.filter((s) => s.date === key)
 
-              return (
-                <div
-                  key={key}
-                  className={`min-h-36 rounded-xl border border-border p-3 ${
-                    key === todayKey ? 'bg-[#F3FAFB]' : 'bg-white'
-                  }`}
-                >
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    {day.toLocaleDateString('en-US', { weekday: 'short' })} {day.getDate()}
-                  </p>
-                  <div className="mt-3 space-y-2">
-                    {dayShifts.length === 0 ? (
-                      <p className="text-xs text-muted-foreground">No shifts</p>
+                  return (
+                    <div
+                      key={key}
+                      className={`min-h-36 rounded-xl border border-border p-3 ${
+                        key === todayKey ? 'bg-[#F3FAFB]' : 'bg-white'
+                      }`}
+                    >
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        {day.toLocaleDateString('en-US', { weekday: 'short' })} {day.getDate()}
+                      </p>
+                      <div className="mt-3 space-y-2">
+                        {dayShifts.length === 0 ? (
+                          <p className="text-xs text-muted-foreground">No shifts</p>
+                        ) : (
+                          dayShifts.map((shift) => (
+                            <div
+                              key={shift.id}
+                              className="rounded-lg border border-[#D7E8EA] bg-white px-2 py-1.5"
+                            >
+                              <p className="truncate text-xs font-medium text-foreground">
+                                {shift.receptionistName}
+                              </p>
+                              <p className="text-[11px] text-muted-foreground">
+                                {shift.startTime} – {shift.endTime}
+                              </p>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-xl border-border shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-base font-semibold">Today&apos;s Shifts</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[720px] text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
+                      <th className="pb-3 font-medium">Staff Member</th>
+                      <th className="pb-3 font-medium">Role</th>
+                      <th className="pb-3 font-medium">Schedule</th>
+                      <th className="pb-3 font-medium">Location</th>
+                      <th className="pb-3 font-medium">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {todayShifts.length === 0 ? (
+                      <tr>
+                        <td colSpan={5}>
+                          <EmptyState
+                            title="No shifts today"
+                            description={
+                              canManage
+                                ? 'Use Manage Shifts to add a shift for today.'
+                                : 'No staff shifts are assigned for today.'
+                            }
+                          />
+                        </td>
+                      </tr>
                     ) : (
-                      dayShifts.map((shift) => (
-                        <div
-                          key={shift.id}
-                          className="rounded-lg border border-[#D7E8EA] bg-white px-2 py-1.5"
-                        >
-                          <p className="truncate text-xs font-medium text-foreground">
+                      todayShifts.map((shift) => (
+                        <tr key={shift.id} className="border-b border-border last:border-0">
+                          <td className="py-4 font-medium text-foreground">
                             {shift.receptionistName}
-                          </p>
-                          <p className="text-[11px] text-muted-foreground">
-                            {shift.startTime} – {shift.endTime}
-                          </p>
-                        </div>
+                          </td>
+                          <td className="py-4 text-muted-foreground">RECEPTIONIST</td>
+                          <td className="py-4 text-foreground">
+                            {shift.startTime} – {shift.endTime} ({shift.session})
+                          </td>
+                          <td className="py-4 text-foreground">{shift.location}</td>
+                          <td className="py-4">
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700">
+                              <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                              {shift.status}
+                            </span>
+                          </td>
+                        </tr>
                       ))
                     )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </CardContent>
-      </Card>
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
 
-      <Card className="rounded-xl border-border shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-base font-semibold">Today&apos;s Shifts</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
-                  <th className="pb-3 font-medium">Staff Member</th>
-                  <th className="pb-3 font-medium">Role</th>
-                  <th className="pb-3 font-medium">Schedule</th>
-                  <th className="pb-3 font-medium">Location</th>
-                  <th className="pb-3 font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {todayShifts.length === 0 ? (
-                  <tr>
-                    <td colSpan={5}>
-                      <EmptyState
-                        title="No shifts today"
-                        description="Use Manage Shifts to add a shift for today."
-                      />
-                    </td>
-                  </tr>
-                ) : (
-                  todayShifts.map((shift) => (
-                    <tr key={shift.id} className="border-b border-border last:border-0">
-                      <td className="py-4 font-medium text-foreground">
-                        {shift.receptionistName}
-                      </td>
-                      <td className="py-4 text-muted-foreground">RECEPTIONIST</td>
-                      <td className="py-4 text-foreground">
-                        {shift.startTime} – {shift.endTime} ({shift.session})
-                      </td>
-                      <td className="py-4 text-foreground">{shift.location}</td>
-                      <td className="py-4">
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700">
-                          <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                          {shift.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
-
-      {dialogOpen ? (
+      {dialogOpen && canManage ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
             <h2 className="text-lg font-semibold text-foreground">Manage Shifts</h2>
@@ -325,7 +314,7 @@ export default function StaffSchedule() {
                 staffOptions={staffOptions}
                 onSubmit={handleCreate}
                 onCancel={() => setDialogOpen(false)}
-                isSubmitting={isSubmitting}
+                isSubmitting={createMutation.isPending}
               />
             </div>
           </div>

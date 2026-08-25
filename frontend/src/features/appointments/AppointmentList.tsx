@@ -203,7 +203,7 @@ export default function AppointmentList() {
     form.reset({
       patientId: String(appointment.patientId),
       doctorId: String(appointment.doctorId),
-      serviceId: appointment.serviceId,
+      serviceId: String(appointment.serviceId),
       date: appointment.date,
       startTime: appointment.startTime,
       endTime: appointment.endTime,
@@ -220,7 +220,7 @@ export default function AppointmentList() {
     form.reset({
       patientId: String(appointment.patientId),
       doctorId: String(appointment.doctorId),
-      serviceId: appointment.serviceId,
+      serviceId: String(appointment.serviceId),
       date: appointment.date,
       startTime: appointment.startTime,
       endTime: appointment.endTime,
