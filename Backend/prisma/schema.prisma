@@ -20,6 +20,8 @@ model User {
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  shifts StaffShift[]
 }
 
 model Doctor {
@@ -89,4 +91,22 @@ model Notification {
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt @default(now())
+}
+
+model StaffShift {
+  id             String   @id @default(cuid())
+  date           DateTime
+  session        String
+  startTime      String
+  endTime        String
+  location       String   @default("Front Desk")
+  status         String   @default("SCHEDULED")
+  receptionistId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt @default(now())
+
+  receptionist User @relation(fields: [receptionistId], references: [id], onDelete: Cascade)
+
+  @@unique([receptionistId, date, session])
+  @@index([date])
 }

@@ -11,6 +11,11 @@ export type LoginResponse = {
   token: string
 }
 
+export type ChangePasswordPayload = {
+  currentPassword: string
+  newPassword: string
+}
+
 export async function loginRequest(payload: LoginPayload): Promise<LoginResponse> {
   const { data } = await api.post<any>('/auth/login', payload)
   if (data && data.data && data.data.user && data.data.token) {
@@ -19,5 +24,10 @@ export async function loginRequest(payload: LoginPayload): Promise<LoginResponse
       token: data.data.token,
     }
   }
+  return data
+}
+
+export async function changePasswordRequest(payload: ChangePasswordPayload) {
+  const { data } = await api.post('/auth/change-password', payload)
   return data
 }

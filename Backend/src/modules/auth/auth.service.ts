@@ -69,4 +69,31 @@ export class AuthService {
 
     return user;
   }
+
+  static async changePassword(
+    userId: string,
+    payload: { currentPassword: string; newPassword: string },
+  ) {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new AppError(404, "User not found");
+    }
+
+    const isValid = await bcrypt.compare(payload.currentPassword, user.password);
+    if (!isValid) {
+      throw new AppError(400, "Current password is incorrect");
+    }
+
+    if (payload.currentPassword === payload.newPassword) {
+      throw new AppError(400, "New password must be different from the current password");
+    }
+
+    const hashedPassword = await bcrypt.hash(payload.newPassword, 10);
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword },
+    });
+
+    return { message: "Password updated successfully" };
+  }
 }

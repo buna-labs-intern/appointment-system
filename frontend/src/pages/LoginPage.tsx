@@ -4,7 +4,6 @@ import { useMutation } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
 import useAuth from '@/hooks/useAuth'
 import { loginRequest, type LoginPayload } from '@/features/auth/authAPI'
-import { resolveLocalLogin } from '@/features/auth/seedAccounts'
 import LoginForm from '@/features/auth/LoginForm'
 import type { LoginFormValues } from '@/features/auth/loginSchema'
 
@@ -15,25 +14,7 @@ export default function LoginPage() {
   const [error, setError] = useState('')
 
   const loginMutation = useMutation({
-    mutationFn: async (payload: LoginPayload) => {
-      try {
-        return await loginRequest(payload)
-      } catch (err) {
-        // Temporary: backend auth not ready — honor seed/demo accounts only
-        if (isAxiosError(err) && !err.response) {
-          const localUser = resolveLocalLogin(payload.email, payload.password)
-          if (localUser) {
-            return { user: localUser, token: 'dev-token' }
-          }
-          const invalid = new Error('Invalid email or password') as Error & {
-            isLocalAuth?: boolean
-          }
-          invalid.isLocalAuth = true
-          throw invalid
-        }
-        throw err
-      }
-    },
+    mutationFn: (payload: LoginPayload) => loginRequest(payload),
     onSuccess: (data) => {
       login(data.user, data.token)
       const redirectTo =
@@ -42,10 +23,6 @@ export default function LoginPage() {
       navigate(redirectTo, { replace: true })
     },
     onError: (err: unknown) => {
-      if (err instanceof Error && 'isLocalAuth' in err) {
-        setError('Invalid email or password')
-        return
-      }
       if (isAxiosError(err)) {
         const message =
           (err.response?.data as { message?: string } | undefined)?.message ||

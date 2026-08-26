@@ -10,22 +10,26 @@ import serviceRoutes from "./modules/service/service.routes";
 import appointmentRoutes from "./modules/appointment/appointment.routes";
 import dashboardRoutes from "./modules/dashboard/dashboard.route";
 import notificationRoutes from "./modules/notification/notification.routes";
+import scheduleRoutes from "./modules/schedule/schedule.routes";
 import { authenticate } from "./middleware/authMiddleware";
 
 const app: Application = express();
 
-// Middlewares
 app.use(
   cors({
-    origin: "*",
+    origin: [
+      "http://localhost:5173",
+      "http://127.0.0.1:5173",
+      "http://localhost:5174",
+      "http://127.0.0.1:5174",
+    ],
     credentials: true,
-  })
+  }),
 );
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morganMiddleware);
 
-// ✅ Health Check
 app.get("/", (req: Request, res: Response) => {
   res.status(200).json({
     success: true,
@@ -33,17 +37,16 @@ app.get("/", (req: Request, res: Response) => {
   });
 });
 
-// ✅ Core API Routes
 app.use("/api/auth", authRoutes);
-app.use("/api/users", userRoutes);
-app.use("/api/doctors", doctorRoutes);
-app.use("/api/patients", patientRoutes);
-app.use("/api/services", serviceRoutes);
-app.use("/api/appointments", appointmentRoutes);
-app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/users", authenticate, userRoutes);
+app.use("/api/doctors", authenticate, doctorRoutes);
+app.use("/api/patients", authenticate, patientRoutes);
+app.use("/api/services", authenticate, serviceRoutes);
+app.use("/api/appointments", authenticate, appointmentRoutes);
+app.use("/api/dashboard", authenticate, dashboardRoutes);
 app.use("/api/notifications", authenticate, notificationRoutes);
+app.use("/api/schedule", authenticate, scheduleRoutes);
 
-// ✅ Global Error Handler - Always last
 app.use(globalErrorHandler);
 
 export default app;
