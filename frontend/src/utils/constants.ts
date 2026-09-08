@@ -7,6 +7,12 @@ export type Role = (typeof ROLES)[keyof typeof ROLES]
 
 export const AUTH_STORAGE_KEY = 'nexacare_auth'
 
+/** Header the backend reads to confirm which clinic a request belongs to. */
+export const TENANT_HEADER = 'X-Tenant-Id'
+
+/** Shown until the backend starts returning tenant details on login. */
+export const DEFAULT_TENANT_NAME = 'NexaCare'
+
 export const NAV_ITEMS = [
   {
     label: 'Dashboard',

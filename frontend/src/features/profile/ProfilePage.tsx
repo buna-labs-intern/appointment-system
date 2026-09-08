@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { changePasswordRequest } from '@/features/auth/authAPI'
+import { useTenant } from '@/features/tenant/TenantContext'
 import useAuth from '@/hooks/useAuth'
 import { canChangeOwnPassword } from '@/utils/permissions'
 import {
@@ -48,6 +49,7 @@ type PasswordFormValues = z.infer<typeof passwordSchema>
 
 export default function ProfilePage() {
   const { user } = useAuth()
+  const { tenantName } = useTenant()
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const canChangePassword = canChangeOwnPassword(user?.role)
@@ -113,6 +115,10 @@ export default function ProfilePage() {
           <div className="flex justify-between gap-4">
             <dt className="text-muted-foreground">Role</dt>
             <dd className="font-medium uppercase text-foreground">{user?.role || '—'}</dd>
+          </div>
+          <div className="flex justify-between gap-4">
+            <dt className="text-muted-foreground">Clinic</dt>
+            <dd className="font-medium text-foreground">{tenantName}</dd>
           </div>
         </dl>
       </div>

@@ -12,6 +12,7 @@ import {
   Users,
 } from 'lucide-react'
 import useAuth from '@/hooks/useAuth'
+import { useTenant } from '@/features/tenant/TenantContext'
 import { NAV_ITEMS } from '@/utils/constants'
 import { canAccessPath } from '@/utils/permissions'
 
@@ -34,6 +35,7 @@ type SidebarProps = {
 
 export default function Sidebar({ open, onClose }: SidebarProps) {
   const { user, logout } = useAuth()
+  const { tenantName } = useTenant()
 
   const handleLogout = () => {
     onClose?.()
@@ -63,8 +65,10 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             alt="NexaCare Logo"
             className="h-10 w-10 rounded-lg object-contain bg-white border border-border/60 p-0.5 shadow-sm"
           />
-          <div>
-            <p className="text-sm font-semibold text-foreground">NexaCare</p>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-foreground" title={tenantName}>
+              {tenantName}
+            </p>
             <p className="text-xs text-muted-foreground">Clinic Operations</p>
           </div>
         </div>

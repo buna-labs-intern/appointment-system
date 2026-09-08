@@ -16,7 +16,7 @@ export default function LoginPage() {
   const loginMutation = useMutation({
     mutationFn: (payload: LoginPayload) => loginRequest(payload),
     onSuccess: (data) => {
-      login(data.user, data.token)
+      login(data.user, data.token, data.tenant)
       const redirectTo =
         (location.state as { from?: { pathname?: string } } | null)?.from
           ?.pathname || '/dashboard'
