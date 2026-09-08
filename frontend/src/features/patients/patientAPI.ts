@@ -1,6 +1,6 @@
 import api from '@/services/axios'
 
-export type PatientGender = 'MALE' | 'FEMALE' | 'OTHER'
+export type PatientGender = 'MALE' | 'FEMALE'
 
 export type Patient = {
   id: string | number

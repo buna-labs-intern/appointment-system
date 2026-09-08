@@ -15,6 +15,7 @@ import {
   receptionistSchema,
   type ReceptionistFormValues,
 } from '@/features/users/receptionistSchema'
+import { PASSWORD_MAX_LENGTH } from '@/utils/validation'
 
 type ReceptionistFormProps = {
   mode: 'create' | 'edit'
@@ -89,6 +90,7 @@ export default function ReceptionistForm({
                   type="password"
                   placeholder={mode === 'create' ? '••••••••' : 'Leave blank to keep current'}
                   disabled={isSubmitting}
+                  maxLength={PASSWORD_MAX_LENGTH}
                   value={field.value ?? ''}
                   onChange={field.onChange}
                   onBlur={field.onBlur}

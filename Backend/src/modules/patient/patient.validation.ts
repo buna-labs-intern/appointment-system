@@ -1,13 +1,20 @@
 import { z } from "zod";
+import {
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+  PHONE_MAX_LENGTH,
+  PHONE_MIN_LENGTH,
+  PHONE_REGEX,
+} from "../../utils/validationConstants";
 
 export const createPatientSchema = z.object({
   body: z.object({
     fullName: z.string().min(2, "Full name must be at least 2 characters").max(100, "Full name cannot exceed 100 characters"),
     phone: z
       .string()
-      .min(7, "Phone number must be at least 7 characters")
-      .max(16, "Phone number cannot exceed 16 characters")
-      .regex(/^[+]?[0-9\s\-()]+$/, "Invalid phone number format"),
+      .min(PHONE_MIN_LENGTH, "Phone number must be at least 7 characters")
+      .max(PHONE_MAX_LENGTH, "Phone number cannot exceed 16 characters")
+      .regex(PHONE_REGEX, "Invalid phone number format"),
     gender: z.string().min(1, "Gender is required"),
     birthDate: z.string().optional(),
     dateOfBirth: z.string().optional(),
@@ -21,9 +28,9 @@ export const updatePatientSchema = z.object({
     fullName: z.string().min(2).max(100).optional(),
     phone: z
       .string()
-      .min(7, "Phone number must be at least 7 characters")
-      .max(16, "Phone number cannot exceed 16 characters")
-      .regex(/^[+]?[0-9\s\-()]+$/, "Invalid phone number format")
+      .min(PHONE_MIN_LENGTH, "Phone number must be at least 7 characters")
+      .max(PHONE_MAX_LENGTH, "Phone number cannot exceed 16 characters")
+      .regex(PHONE_REGEX, "Invalid phone number format")
       .optional(),
     gender: z.string().optional(),
     birthDate: z.string().optional(),

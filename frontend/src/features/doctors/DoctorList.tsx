@@ -39,6 +39,11 @@ import {
   type DoctorPayload,
 } from '@/features/doctors/doctorAPI'
 import { toast } from '@/lib/toastStore'
+import {
+  PHONE_MAX_LENGTH,
+  PHONE_MIN_LENGTH,
+  PHONE_REGEX,
+} from '@/utils/validation'
 
 const doctorSchema = z.object({
   fullName: z.string().trim().min(2, 'Full name is required').max(100, 'Full name cannot exceed 100 characters'),
@@ -46,9 +51,9 @@ const doctorSchema = z.object({
   phone: z
     .string()
     .trim()
-    .min(7, 'Phone number must be at least 7 digits')
-    .max(16, 'Phone number cannot exceed 16 digits')
-    .regex(/^[+]?[0-9\s\-()]+$/, 'Enter a valid phone number'),
+    .min(PHONE_MIN_LENGTH, 'Phone number must be at least 7 digits')
+    .max(PHONE_MAX_LENGTH, 'Phone number cannot exceed 16 digits')
+    .regex(PHONE_REGEX, 'Enter a valid phone number'),
   isActive: z.boolean(),
 })
 
@@ -478,7 +483,7 @@ export default function DoctorList() {
                     <FormItem>
                       <FormLabel>Phone number</FormLabel>
                       <FormControl>
-                        <Input placeholder="+252 61 000 0000" maxLength={16} {...field} />
+                        <Input placeholder="+252 61 000 0000" maxLength={PHONE_MAX_LENGTH} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

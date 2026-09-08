@@ -1,5 +1,10 @@
 // src/modules/doctor/doctor.validation.ts
 import { z } from 'zod';
+import {
+  PHONE_MAX_LENGTH,
+  PHONE_MIN_LENGTH,
+  PHONE_REGEX,
+} from '../../utils/validationConstants';
 
 // ✅ CREATE
 export const createDoctorSchema = z.object({
@@ -8,9 +13,9 @@ export const createDoctorSchema = z.object({
     specialty: z.string().min(2, 'Specialty must be at least 2 characters').max(100, 'Specialty cannot exceed 100 characters'),
     phone: z
       .string()
-      .min(7, 'Phone number must be at least 7 characters')
-      .max(16, 'Phone number cannot exceed 16 characters')
-      .regex(/^[+]?[0-9\s\-()]+$/, 'Invalid phone number format'),
+      .min(PHONE_MIN_LENGTH, 'Phone number must be at least 7 characters')
+      .max(PHONE_MAX_LENGTH, 'Phone number cannot exceed 16 characters')
+      .regex(PHONE_REGEX, 'Invalid phone number format'),
   }),
 });
 
@@ -21,9 +26,9 @@ export const updateDoctorSchema = z.object({
     specialty: z.string().min(2).max(100).optional(),
     phone: z
       .string()
-      .min(7, 'Phone number must be at least 7 characters')
-      .max(16, 'Phone number cannot exceed 16 characters')
-      .regex(/^[+]?[0-9\s\-()]+$/, 'Invalid phone number format')
+      .min(PHONE_MIN_LENGTH, 'Phone number must be at least 7 characters')
+      .max(PHONE_MAX_LENGTH, 'Phone number cannot exceed 16 characters')
+      .regex(PHONE_REGEX, 'Invalid phone number format')
       .optional(),
     isActive: z.boolean().optional(),
   }),
