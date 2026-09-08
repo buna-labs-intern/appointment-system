@@ -14,6 +14,11 @@ export const NAV_ITEMS = [
     icon: 'LayoutDashboard',
   },
   {
+    label: 'My Schedule',
+    path: '/my-schedule',
+    icon: 'CalendarClock',
+  },
+  {
     label: 'Appointments',
     path: '/appointments',
     icon: 'CalendarDays',

@@ -17,16 +17,27 @@ import { Input } from '@/components/ui/input'
 import { changePasswordRequest } from '@/features/auth/authAPI'
 import useAuth from '@/hooks/useAuth'
 import { canChangeOwnPassword } from '@/utils/permissions'
+import {
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+} from '@/utils/validation'
 
 const passwordSchema = z
   .object({
-    currentPassword: z.string().min(1, 'Current password is required'),
+    currentPassword: z
+      .string()
+      .min(1, 'Current password is required')
+      .max(PASSWORD_MAX_LENGTH, 'Password cannot exceed 64 characters'),
     newPassword: z
       .string()
-      .min(8, 'New password must be at least 8 characters')
+      .min(PASSWORD_MIN_LENGTH, 'New password must be at least 8 characters')
+      .max(PASSWORD_MAX_LENGTH, 'Password cannot exceed 64 characters')
       .regex(/[A-Z]/, 'Include an uppercase letter')
       .regex(/[0-9]/, 'Include a number'),
-    confirmPassword: z.string().min(1, 'Confirm your new password'),
+    confirmPassword: z
+      .string()
+      .min(1, 'Confirm your new password')
+      .max(PASSWORD_MAX_LENGTH, 'Password cannot exceed 64 characters'),
   })
   .refine((values) => values.newPassword === values.confirmPassword, {
     message: 'Passwords do not match',
@@ -118,7 +129,12 @@ export default function ProfilePage() {
                   <FormItem>
                     <FormLabel>Current password</FormLabel>
                     <FormControl>
-                      <Input type="password" autoComplete="current-password" {...field} />
+                      <Input
+                        type="password"
+                        autoComplete="current-password"
+                        maxLength={PASSWORD_MAX_LENGTH}
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -131,7 +147,12 @@ export default function ProfilePage() {
                   <FormItem>
                     <FormLabel>New password</FormLabel>
                     <FormControl>
-                      <Input type="password" autoComplete="new-password" {...field} />
+                      <Input
+                        type="password"
+                        autoComplete="new-password"
+                        maxLength={PASSWORD_MAX_LENGTH}
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -144,7 +165,12 @@ export default function ProfilePage() {
                   <FormItem>
                     <FormLabel>Confirm new password</FormLabel>
                     <FormControl>
-                      <Input type="password" autoComplete="new-password" {...field} />
+                      <Input
+                        type="password"
+                        autoComplete="new-password"
+                        maxLength={PASSWORD_MAX_LENGTH}
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

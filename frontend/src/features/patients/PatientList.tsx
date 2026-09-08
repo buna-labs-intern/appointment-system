@@ -39,16 +39,21 @@ import {
   type PatientPayload,
 } from '@/features/patients/patientAPI'
 import { toast } from '@/lib/toastStore'
+import {
+  PHONE_MAX_LENGTH,
+  PHONE_MIN_LENGTH,
+  PHONE_REGEX,
+} from '@/utils/validation'
 
 const patientSchema = z.object({
   fullName: z.string().trim().min(2, 'Full name is required').max(100, 'Full name cannot exceed 100 characters'),
   phone: z
     .string()
     .trim()
-    .min(7, 'Phone number must be at least 7 digits')
-    .max(16, 'Phone number cannot exceed 16 digits')
-    .regex(/^[+]?[0-9\s\-()]+$/, 'Enter a valid phone number'),
-  gender: z.enum(['MALE', 'FEMALE', 'OTHER']),
+    .min(PHONE_MIN_LENGTH, 'Phone number must be at least 7 digits')
+    .max(PHONE_MAX_LENGTH, 'Phone number cannot exceed 16 digits')
+    .regex(PHONE_REGEX, 'Enter a valid phone number'),
+  gender: z.enum(['MALE', 'FEMALE']),
   dateOfBirth: z.string().min(1, 'Date of birth is required'),
   address: z.string().max(255, 'Address cannot exceed 255 characters').optional(),
   notes: z.string().max(1000, 'Notes cannot exceed 1000 characters').optional(),
@@ -70,7 +75,6 @@ const emptyValues: PatientFormValues = {
 const genderLabel: Record<Patient['gender'], string> = {
   MALE: 'Male',
   FEMALE: 'Female',
-  OTHER: 'Other',
 }
 
 export default function PatientList() {
@@ -433,7 +437,7 @@ export default function PatientList() {
                     <FormItem>
                       <FormLabel>Phone number</FormLabel>
                       <FormControl>
-                        <Input placeholder="+252 61 000 0000" maxLength={16} {...field} />
+                        <Input placeholder="+252 61 000 0000" maxLength={PHONE_MAX_LENGTH} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -454,7 +458,6 @@ export default function PatientList() {
                           >
                             <option value="FEMALE">Female</option>
                             <option value="MALE">Male</option>
-                            <option value="OTHER">Other</option>
                           </select>
                         </FormControl>
                         <FormMessage />

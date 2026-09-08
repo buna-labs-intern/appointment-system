@@ -13,6 +13,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { loginSchema, type LoginFormValues } from '@/features/auth/loginSchema'
+import { PASSWORD_MAX_LENGTH } from '@/utils/validation'
 
 type LoginFormProps = {
   onSubmit: (values: LoginFormValues) => void
@@ -78,6 +79,7 @@ export default function LoginForm({ onSubmit, error, isSubmitting }: LoginFormPr
                     placeholder="••••••••"
                     className="h-11 rounded-xl pr-10"
                     disabled={isSubmitting}
+                    maxLength={PASSWORD_MAX_LENGTH}
                     {...field}
                   />
                   <button

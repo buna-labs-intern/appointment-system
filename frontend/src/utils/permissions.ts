@@ -51,6 +51,7 @@ export type NavAccess = {
 
 export const NAV_ACCESS: NavAccess[] = [
   { path: '/dashboard', roles: [ROLES.ADMIN, ROLES.RECEPTIONIST] },
+  { path: '/my-schedule', roles: [ROLES.RECEPTIONIST] },
   { path: '/appointments', roles: [ROLES.ADMIN, ROLES.RECEPTIONIST] },
   { path: '/patients', roles: [ROLES.ADMIN, ROLES.RECEPTIONIST] },
   { path: '/doctors', roles: [ROLES.ADMIN, ROLES.RECEPTIONIST] },

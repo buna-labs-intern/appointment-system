@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import useAuth from '@/hooks/useAuth'
 import DashboardCards from '@/features/dashboard/DashboardCards'
 import RecentAppointments from '@/features/dashboard/RecentAppointments'
+import MyScheduleSummary from '@/features/schedule/MyScheduleSummary'
 import { getDashboardData } from '@/features/dashboard/dashboardAPI'
 import { isAdmin } from '@/utils/permissions'
 
@@ -85,7 +86,9 @@ export default function DashboardOverview() {
             </CardContent>
           </Card>
 
-          <Card className="rounded-xl border-border shadow-sm sm:col-span-2">
+          <MyScheduleSummary />
+
+          <Card className="rounded-xl border-border shadow-sm sm:col-span-2 xl:col-span-1">
             <CardHeader>
               <CardTitle className="text-base font-semibold">Front-desk tasks</CardTitle>
             </CardHeader>

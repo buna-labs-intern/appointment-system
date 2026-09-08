@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router'
 import {
   BarChart3,
+  CalendarClock,
   CalendarDays,
   ClipboardList,
   LayoutDashboard,
@@ -16,6 +17,7 @@ import { canAccessPath } from '@/utils/permissions'
 
 const ICONS = {
   LayoutDashboard,
+  CalendarClock,
   CalendarDays,
   Users,
   Stethoscope,

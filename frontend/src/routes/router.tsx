@@ -10,6 +10,7 @@ import ProfilePage from '@/pages/ProfilePage'
 import ReportsPage from '@/pages/ReportsPage'
 import ServicesPage from '@/pages/ServicesPage'
 import UsersPage from '@/pages/UsersPage'
+import MySchedulePage from '@/pages/MySchedulePage'
 import ProtectedRoute from '@/routes/PrivateRoute'
 import RoleRoute from '@/routes/RoleRoute'
 import { ROLES } from '@/utils/constants'
@@ -38,6 +39,10 @@ export const router = createBrowserRouter([
           { path: 'services', Component: ServicesPage },
           { path: 'profile', Component: ProfilePage },
           { path: 'notifications', Component: NotificationsPage },
+          {
+            element: <RoleRoute allowedRoles={[ROLES.RECEPTIONIST]} />,
+            children: [{ path: 'my-schedule', Component: MySchedulePage }],
+          },
           {
             element: <RoleRoute allowedRoles={[ROLES.ADMIN]} />,
             children: [
