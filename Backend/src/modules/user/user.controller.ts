@@ -4,8 +4,8 @@ import sendResponse from "../../utils/sendResponse";
 import { AuthRequest } from "../../middleware/authMiddleware";
 
 export class UserController {
-  static async create(req: Request, res: Response) {
-    const user = await UserService.create(req.body);
+  static async create(req: AuthRequest, res: Response) {
+    const user = await UserService.create(req.body, { tenantId: req.user?.tenantId ?? null });
     sendResponse(res, {
       statusCode: 201,
       success: true,
@@ -14,8 +14,8 @@ export class UserController {
     });
   }
 
-  static async getAll(req: Request, res: Response) {
-    const result = await UserService.getAll(req.query);
+  static async getAll(req: AuthRequest, res: Response) {
+    const result = await UserService.getAll(req.query, { tenantId: req.user?.tenantId ?? null });
     sendResponse(res, {
       statusCode: 200,
       success: true,
@@ -25,9 +25,9 @@ export class UserController {
     });
   }
 
-  static async getById(req: Request, res: Response) {
+  static async getById(req: AuthRequest, res: Response) {
     const { id } = req.params;
-    const user = await UserService.getById(id as string);
+    const user = await UserService.getById(id as string, { tenantId: req.user?.tenantId ?? null });
     sendResponse(res, {
       statusCode: 200,
       success: true,
@@ -36,9 +36,9 @@ export class UserController {
     });
   }
 
-  static async update(req: Request, res: Response) {
+  static async update(req: AuthRequest, res: Response) {
     const { id } = req.params;
-    const user = await UserService.update(id as string, req.body);
+    const user = await UserService.update(id as string, req.body, { tenantId: req.user?.tenantId ?? null });
     sendResponse(res, {
       statusCode: 200,
       success: true,
@@ -47,9 +47,9 @@ export class UserController {
     });
   }
 
-  static async activate(req: Request, res: Response) {
+  static async activate(req: AuthRequest, res: Response) {
     const { id } = req.params;
-    const user = await UserService.activate(id as string);
+    const user = await UserService.activate(id as string, { tenantId: req.user?.tenantId ?? null });
     sendResponse(res, {
       statusCode: 200,
       success: true,
@@ -58,9 +58,9 @@ export class UserController {
     });
   }
 
-  static async deactivate(req: Request, res: Response) {
+  static async deactivate(req: AuthRequest, res: Response) {
     const { id } = req.params;
-    const user = await UserService.deactivate(id as string);
+    const user = await UserService.deactivate(id as string, { tenantId: req.user?.tenantId ?? null });
     sendResponse(res, {
       statusCode: 200,
       success: true,
@@ -71,7 +71,7 @@ export class UserController {
 
   static async delete(req: AuthRequest, res: Response) {
     const { id } = req.params;
-    const user = await UserService.delete(id as string, req.user?.id);
+    const user = await UserService.delete(id as string, req.user?.id, { tenantId: req.user?.tenantId ?? null });
     sendResponse(res, {
       statusCode: 200,
       success: true,

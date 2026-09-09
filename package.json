@@ -1,0 +1,5 @@
+{
+	"dependencies": {
+		"@types/pg": "^8.23.1"
+	}
+}

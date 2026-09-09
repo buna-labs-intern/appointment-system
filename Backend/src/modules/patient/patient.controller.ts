@@ -5,7 +5,7 @@ import { PatientService } from "./patient.service";
 export class PatientController {
   static async create(req: Request, res: Response) {
     try {
-      const patient = await PatientService.create(req.body);
+      const patient = await PatientService.create(req.body, { tenantId: (req as any).user?.tenantId ?? null });
       res.status(201).json({
         success: true,
         message: "Patient created successfully",
@@ -28,6 +28,7 @@ export class PatientController {
         sortBy: req.query.sortBy as string,
         sortOrder: req.query.sortOrder as 'asc' | 'desc',
         gender: req.query.gender as string,
+        tenantId: (req as any).user?.tenantId ?? null,
       };
 
       const result = await PatientService.getAll(options);
@@ -47,7 +48,7 @@ export class PatientController {
   static async getOne(req: Request, res: Response) {
     try {
       const { id } = req.params;
-      const patient = await PatientService.getById(id as string);
+      const patient = await PatientService.getById(id as string, { tenantId: (req as any).user?.tenantId ?? null });
       res.status(200).json({
         success: true,
         data: patient,
@@ -64,7 +65,7 @@ export class PatientController {
   static async update(req: Request, res: Response) {
     try {
       const { id } = req.params;
-      const patient = await PatientService.update(id as string, req.body);
+      const patient = await PatientService.update(id as string, req.body, { tenantId: (req as any).user?.tenantId ?? null });
       res.status(200).json({
         success: true,
         message: "Patient updated successfully",
@@ -82,13 +83,13 @@ export class PatientController {
   static async delete(req: Request, res: Response) {
     try {
       const { id } = req.params;
-      await PatientService.delete(id as string);
+      await PatientService.delete(id as string, { tenantId: (req as any).user?.tenantId ?? null });
       res.status(200).json({
         success: true,
         message: "Patient deleted successfully",
       });
     } catch (error: any) {
-      res.status(400).json({
+      res.status(error.message === 'Patient not found' ? 404 : 400).json({
         success: false,
         message: error.message || "Failed to delete patient",
       });

@@ -9,13 +9,17 @@ export class NotificationRepository {
         message: payload.message,
         type: payload.type || "system",
         isRead: false,
-      },
+        branchId: (payload as any).branchId || null,
+      } as any,
     });
   }
 
-  static async findAll(options: INotificationQueryOptions = {}) {
-    const { page, limit, isRead, type, search } = options;
+  static async findAll(options: INotificationQueryOptions & { branchId?: string; branchIds?: string[]; branchAll?: boolean; tenantId?: string | null } = {}) {
+    const { page, limit, isRead, type, search, branchId, branchIds, branchAll, tenantId } = options as any;
     const where: any = {};
+    if (branchId) where.branchId = branchId;
+    else if (!branchAll && branchIds?.length) where.branchId = { in: branchIds };
+    else if (tenantId) where.branch = { tenantId };
 
     if (isRead !== undefined) {
       where.isRead = isRead;

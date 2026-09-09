@@ -11,7 +11,9 @@ import appointmentRoutes from "./modules/appointment/appointment.routes";
 import dashboardRoutes from "./modules/dashboard/dashboard.route";
 import notificationRoutes from "./modules/notification/notification.routes";
 import scheduleRoutes from "./modules/schedule/schedule.routes";
-import { authenticate } from "./middleware/authMiddleware";
+import { authenticate, forbidSuperAdmin } from "./middleware/authMiddleware";
+import branchRoutes from "./modules/branch/branch.routes";
+import tenantRoutes from "./modules/tenant/tenant.routes";
 
 const app: Application = express();
 
@@ -38,14 +40,21 @@ app.get("/", (req: Request, res: Response) => {
 });
 
 app.use("/api/auth", authRoutes);
-app.use("/api/users", authenticate, userRoutes);
-app.use("/api/doctors", authenticate, doctorRoutes);
-app.use("/api/patients", authenticate, patientRoutes);
-app.use("/api/services", authenticate, serviceRoutes);
-app.use("/api/appointments", authenticate, appointmentRoutes);
-app.use("/api/dashboard", authenticate, dashboardRoutes);
-app.use("/api/notifications", authenticate, notificationRoutes);
-app.use("/api/schedule", authenticate, scheduleRoutes);
+app.use("/api/tenants", authenticate, tenantRoutes);
+app.use("/api/branches", authenticate, forbidSuperAdmin, branchRoutes);
+app.use("/api/users", authenticate, forbidSuperAdmin, userRoutes);
+app.use("/api/doctors", authenticate, forbidSuperAdmin, doctorRoutes);
+app.use("/api/patients", authenticate, forbidSuperAdmin, patientRoutes);
+app.use("/api/services", authenticate, forbidSuperAdmin, serviceRoutes);
+app.use("/api/appointments", authenticate, forbidSuperAdmin, appointmentRoutes);
+app.use("/api/dashboard", authenticate, forbidSuperAdmin, dashboardRoutes);
+app.use("/api/notifications", authenticate, forbidSuperAdmin, notificationRoutes);
+app.use("/api/schedule", authenticate, forbidSuperAdmin, scheduleRoutes);
+
+try {
+  const googleRoutes = require("./modules/auth/google.routes").default;
+  app.use("/api/auth/google", googleRoutes);
+} catch {}
 
 app.use(globalErrorHandler);
 

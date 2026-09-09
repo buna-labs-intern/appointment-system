@@ -4,11 +4,13 @@ import { ScheduleService } from "./schedule.service";
 
 export class ScheduleController {
   static async getAll(req: Request, res: Response) {
+    const ctx = (req as any).branchContext ?? ((req as any).user ? { branchIds: (req as any).user.branchIds, branchAll: (req as any).user.branchAll, tenantId: (req as any).user.tenantId } : null);
     const shifts = await ScheduleService.getAll({
       from: req.query.from as string | undefined,
       to: req.query.to as string | undefined,
       receptionistId: req.query.receptionistId as string | undefined,
-    });
+      branchId: req.query.branchId as string | undefined,
+    }, ctx);
 
     sendResponse(res, {
       statusCode: 200,
@@ -29,7 +31,8 @@ export class ScheduleController {
   }
 
   static async create(req: Request, res: Response) {
-    const shift = await ScheduleService.create(req.body);
+    const ctx = (req as any).branchContext ?? ((req as any).user ? { branchIds: (req as any).user.branchIds, branchAll: (req as any).user.branchAll, tenantId: (req as any).user.tenantId } : null);
+    const shift = await ScheduleService.create(req.body, ctx);
     sendResponse(res, {
       statusCode: 201,
       success: true,
@@ -39,7 +42,8 @@ export class ScheduleController {
   }
 
   static async update(req: Request, res: Response) {
-    const shift = await ScheduleService.update(req.params.id as string, req.body);
+    const ctx = (req as any).branchContext ?? ((req as any).user ? { branchIds: (req as any).user.branchIds, branchAll: (req as any).user.branchAll, tenantId: (req as any).user.tenantId } : null);
+    const shift = await ScheduleService.update(req.params.id as string, req.body, ctx);
     sendResponse(res, {
       statusCode: 200,
       success: true,
@@ -49,7 +53,8 @@ export class ScheduleController {
   }
 
   static async delete(req: Request, res: Response) {
-    const result = await ScheduleService.delete(req.params.id as string);
+    const ctx = (req as any).branchContext ?? ((req as any).user ? { branchIds: (req as any).user.branchIds, branchAll: (req as any).user.branchAll, tenantId: (req as any).user.tenantId } : null);
+    const result = await ScheduleService.delete(req.params.id as string, ctx);
     sendResponse(res, {
       statusCode: 200,
       success: true,

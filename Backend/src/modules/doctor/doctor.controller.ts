@@ -1,10 +1,12 @@
 import { Request, Response } from "express";
 import { DoctorService } from "./doctor.service";
 import sendResponse from "../../utils/sendResponse";
+import { AuthRequest } from "../../middleware/authMiddleware";
 
 export class DoctorController {
-  static async create(req: Request, res: Response) {
-    const doctor = await DoctorService.create(req.body);
+  static async create(req: AuthRequest, res: Response) {
+    const ctx = (req as any).branchContext ?? (req.user ? { branchIds: req.user.branchIds, branchAll: req.user.branchAll, tenantId: req.user.tenantId } : null);
+    const doctor = await DoctorService.create(req.body, ctx);
     sendResponse(res, {
       statusCode: 201,
       success: true,
@@ -13,8 +15,9 @@ export class DoctorController {
     });
   }
 
-  static async getAll(req: Request, res: Response) {
-    const result: any = await DoctorService.getAll(req.query);
+  static async getAll(req: AuthRequest, res: Response) {
+    const ctx = (req as any).branchContext ?? (req.user ? { branchIds: req.user.branchIds, branchAll: req.user.branchAll, tenantId: req.user.tenantId } : null);
+    const result: any = await DoctorService.getAll(req.query, ctx);
     if (result && result.meta) {
       sendResponse(res, {
         statusCode: 200,
@@ -33,9 +36,10 @@ export class DoctorController {
     }
   }
 
-  static async getOne(req: Request, res: Response) {
+  static async getOne(req: AuthRequest, res: Response) {
     const { id } = req.params;
-    const doctor = await DoctorService.getById(id as string);
+    const ctx = (req as any).branchContext ?? (req.user ? { branchIds: req.user.branchIds, branchAll: req.user.branchAll, tenantId: req.user.tenantId } : null);
+    const doctor = await DoctorService.getById(id as string, ctx);
     sendResponse(res, {
       statusCode: 200,
       success: true,
@@ -44,9 +48,10 @@ export class DoctorController {
     });
   }
 
-  static async update(req: Request, res: Response) {
+  static async update(req: AuthRequest, res: Response) {
     const { id } = req.params;
-    const doctor = await DoctorService.update(id as string, req.body);
+    const ctx = (req as any).branchContext ?? (req.user ? { branchIds: req.user.branchIds, branchAll: req.user.branchAll, tenantId: req.user.tenantId } : null);
+    const doctor = await DoctorService.update(id as string, req.body, ctx);
     sendResponse(res, {
       statusCode: 200,
       success: true,
@@ -55,9 +60,10 @@ export class DoctorController {
     });
   }
 
-  static async delete(req: Request, res: Response) {
+  static async delete(req: AuthRequest, res: Response) {
     const { id } = req.params;
-    await DoctorService.delete(id as string);
+    const ctx = (req as any).branchContext ?? (req.user ? { branchIds: req.user.branchIds, branchAll: req.user.branchAll, tenantId: req.user.tenantId } : null);
+    await DoctorService.delete(id as string, ctx);
     sendResponse(res, {
       statusCode: 200,
       success: true,
@@ -65,9 +71,10 @@ export class DoctorController {
     });
   }
 
-  static async activate(req: Request, res: Response) {
+  static async activate(req: AuthRequest, res: Response) {
     const { id } = req.params;
-    const doctor = await DoctorService.activate(id as string);
+    const ctx = (req as any).branchContext ?? (req.user ? { branchIds: req.user.branchIds, branchAll: req.user.branchAll, tenantId: req.user.tenantId } : null);
+    const doctor = await DoctorService.activate(id as string, ctx);
     sendResponse(res, {
       statusCode: 200,
       success: true,
@@ -76,9 +83,10 @@ export class DoctorController {
     });
   }
 
-  static async deactivate(req: Request, res: Response) {
+  static async deactivate(req: AuthRequest, res: Response) {
     const { id } = req.params;
-    const doctor = await DoctorService.deactivate(id as string);
+    const ctx = (req as any).branchContext ?? (req.user ? { branchIds: req.user.branchIds, branchAll: req.user.branchAll, tenantId: req.user.tenantId } : null);
+    const doctor = await DoctorService.deactivate(id as string, ctx);
     sendResponse(res, {
       statusCode: 200,
       success: true,
@@ -87,9 +95,10 @@ export class DoctorController {
     });
   }
 
-  static async toggleActive(req: Request, res: Response) {
+  static async toggleActive(req: AuthRequest, res: Response) {
     const { id } = req.params;
-    const doctor = await DoctorService.getById(id as string);
+    const ctx = (req as any).branchContext ?? (req.user ? { branchIds: req.user.branchIds, branchAll: req.user.branchAll, tenantId: req.user.tenantId } : null);
+    const doctor = await DoctorService.getById(id as string, ctx);
     const updated = doctor.isActive
       ? await DoctorService.deactivate(id as string)
       : await DoctorService.activate(id as string);

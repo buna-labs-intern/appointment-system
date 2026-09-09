@@ -1,10 +1,12 @@
 import { Request, Response } from "express";
 import { AppointmentService } from "./appointment.service";
 import sendResponse from "../../utils/sendResponse";
+import { AuthRequest } from "../../middleware/authMiddleware";
 
 export class AppointmentController {
-  create = async (req: Request, res: Response) => {
-    const result = await AppointmentService.create(req.body);
+  create = async (req: AuthRequest, res: Response) => {
+    const ctx = (req as any).branchContext ?? (req.user ? { branchIds: req.user.branchIds, branchAll: req.user.branchAll, tenantId: req.user.tenantId } : null);
+    const result = await AppointmentService.create(req.body, ctx);
     sendResponse(res, {
       statusCode: 201,
       success: true,
@@ -13,8 +15,9 @@ export class AppointmentController {
     });
   };
 
-  getAll = async (req: Request, res: Response) => {
-    const result = await AppointmentService.getAll(req.query);
+  getAll = async (req: AuthRequest, res: Response) => {
+    const ctx = (req as any).branchContext ?? (req.user ? { branchIds: req.user.branchIds, branchAll: req.user.branchAll, tenantId: req.user.tenantId } : null);
+    const result = await AppointmentService.getAll(req.query, ctx);
     sendResponse(res, {
       statusCode: 200,
       success: true,
@@ -24,8 +27,9 @@ export class AppointmentController {
     });
   };
 
-  getById = async (req: Request, res: Response) => {
-    const result = await AppointmentService.getById(req.params.id as string);
+  getById = async (req: AuthRequest, res: Response) => {
+    const ctx = (req as any).branchContext ?? (req.user ? { branchIds: req.user.branchIds, branchAll: req.user.branchAll, tenantId: req.user.tenantId } : null);
+    const result = await AppointmentService.getById(req.params.id as string, ctx);
     sendResponse(res, {
       statusCode: 200,
       success: true,
@@ -34,10 +38,12 @@ export class AppointmentController {
     });
   };
 
-  update = async (req: Request, res: Response) => {
+  update = async (req: AuthRequest, res: Response) => {
+    const ctx = (req as any).branchContext ?? (req.user ? { branchIds: req.user.branchIds, branchAll: req.user.branchAll, tenantId: req.user.tenantId } : null);
     const result = await AppointmentService.update(
       req.params.id as string,
-      req.body
+      req.body,
+      ctx
     );
     sendResponse(res, {
       statusCode: 200,
@@ -47,8 +53,9 @@ export class AppointmentController {
     });
   };
 
-  cancel = async (req: Request, res: Response) => {
-    const result = await AppointmentService.cancel(req.params.id as string);
+  cancel = async (req: AuthRequest, res: Response) => {
+    const ctx = (req as any).branchContext ?? (req.user ? { branchIds: req.user.branchIds, branchAll: req.user.branchAll, tenantId: req.user.tenantId } : null);
+    const result = await AppointmentService.cancel(req.params.id as string, ctx);
     sendResponse(res, {
       statusCode: 200,
       success: true,
@@ -57,8 +64,9 @@ export class AppointmentController {
     });
   };
 
-  checkIn = async (req: Request, res: Response) => {
-    const result = await AppointmentService.checkIn(req.params.id as string);
+  checkIn = async (req: AuthRequest, res: Response) => {
+    const ctx = (req as any).branchContext ?? (req.user ? { branchIds: req.user.branchIds, branchAll: req.user.branchAll, tenantId: req.user.tenantId } : null);
+    const result = await AppointmentService.checkIn(req.params.id as string, ctx);
     sendResponse(res, {
       statusCode: 200,
       success: true,
@@ -67,8 +75,9 @@ export class AppointmentController {
     });
   };
 
-  complete = async (req: Request, res: Response) => {
-    const result = await AppointmentService.complete(req.params.id as string);
+  complete = async (req: AuthRequest, res: Response) => {
+    const ctx = (req as any).branchContext ?? (req.user ? { branchIds: req.user.branchIds, branchAll: req.user.branchAll, tenantId: req.user.tenantId } : null);
+    const result = await AppointmentService.complete(req.params.id as string, ctx);
     sendResponse(res, {
       statusCode: 200,
       success: true,
@@ -77,8 +86,9 @@ export class AppointmentController {
     });
   };
 
-  noShow = async (req: Request, res: Response) => {
-    const result = await AppointmentService.noShow(req.params.id as string);
+  noShow = async (req: AuthRequest, res: Response) => {
+    const ctx = (req as any).branchContext ?? (req.user ? { branchIds: req.user.branchIds, branchAll: req.user.branchAll, tenantId: req.user.tenantId } : null);
+    const result = await AppointmentService.noShow(req.params.id as string, ctx);
     sendResponse(res, {
       statusCode: 200,
       success: true,
@@ -87,8 +97,9 @@ export class AppointmentController {
     });
   };
 
-  delete = async (req: Request, res: Response) => {
-    await AppointmentService.delete(req.params.id as string);
+  delete = async (req: AuthRequest, res: Response) => {
+    const ctx = (req as any).branchContext ?? (req.user ? { branchIds: req.user.branchIds, branchAll: req.user.branchAll, tenantId: req.user.tenantId } : null);
+    await AppointmentService.delete(req.params.id as string, ctx);
     sendResponse(res, {
       statusCode: 200,
       success: true,
