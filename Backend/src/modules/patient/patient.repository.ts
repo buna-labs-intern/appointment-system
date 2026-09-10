@@ -13,23 +13,25 @@ export class PatientRepository {
         birthDate: rawBirthDate ? new Date(rawBirthDate) : new Date(),
         address: data.address || null,
         notes: data.notes || null,
+        tenantId: data.tenantId || null,
       },
     });
   }
 
-  async findAll(options?: SearchOptions & { gender?: string }) {
+  async findAll(options?: SearchOptions & { gender?: string; tenantId?: string | null }) {
     if (!options) {
       return prisma.patient.findMany({
         orderBy: { createdAt: "desc" },
       });
     }
 
-    const { page, limit, sortBy, sortOrder, searchTerm, gender } = options;
+    const { page, limit, sortBy, sortOrder, searchTerm, gender, tenantId } = options;
     const { skip, take } = calculatePagination(page, limit);
 
     const searchCondition = generateSearchCondition(searchTerm, ["fullName", "phone", "address"]);
     const filterCondition: any = {};
     if (gender) filterCondition.gender = gender;
+    if (tenantId) filterCondition.tenantId = tenantId;
 
     const where = {
       ...searchCondition,
@@ -78,9 +80,9 @@ export class PatientRepository {
     });
   }
 
-  async findByPhone(phone: string) {
+  async findByPhone(phone: string, tenantId?: string | null) {
     return prisma.patient.findFirst({
-      where: { phone },
+      where: { phone, ...(tenantId ? { tenantId } : {}) },
     });
   }
 

@@ -1,4 +1,5 @@
 import AppError from "../../utils/AppError";
+import { resolveCreateBranchId, assertRecordTenant } from "../../utils/branchScope";
 import prisma from "../../shared/prisma";
 import AppointmentRepository from "./appointment.repository";
 import NotificationService from "../notification/notification.service";
@@ -51,11 +52,13 @@ export class AppointmentService {
     appointmentDate: Date,
     startMinutes: number,
     endMinutes: number,
+    branchId?: string,
     excludeId?: string
   ) {
     const existingAppointments = await AppointmentRepository.findDoctorAppointmentsOnDate(
       doctorId,
       appointmentDate,
+      branchId,
       excludeId
     );
 
@@ -85,7 +88,13 @@ export class AppointmentService {
     }
   }
 
-  static async create(payload: any) {
+  private static async resolveBranchForCreate(payload: any, ctx: any) {
+    return resolveCreateBranchId(payload, ctx);
+  }
+
+  static async create(payload: any, ctx?: any) {
+    const branchId = ctx !== undefined ? await this.resolveBranchForCreate(payload, ctx) : payload.branchId || null;
+
     const doctor = await prisma.doctor.findUnique({
       where: { id: payload.doctorId },
     });
@@ -94,6 +103,9 @@ export class AppointmentService {
     }
     if (!doctor.isActive) {
       throw new AppError(400, "Cannot schedule appointment with an inactive doctor");
+    }
+    if (branchId && (doctor as any).branchId && (doctor as any).branchId !== branchId) {
+      throw new AppError(400, "Doctor does not belong to the selected branch");
     }
 
     const service = await prisma.service.findUnique({
@@ -104,6 +116,9 @@ export class AppointmentService {
     }
     if (!service.isActive) {
       throw new AppError(400, "Cannot schedule appointment with an inactive service");
+    }
+    if (branchId && (service as any).branchId && (service as any).branchId !== branchId) {
+      throw new AppError(400, "Service does not belong to the selected branch");
     }
 
     const patient = await prisma.patient.findUnique({
@@ -152,7 +167,7 @@ export class AppointmentService {
     }
 
     // Check doctor overlapping appointments
-    await this.checkDoctorOverlap(payload.doctorId, fullStartDateTime, startMinutes, endMinutes);
+    await this.checkDoctorOverlap(payload.doctorId, fullStartDateTime, startMinutes, endMinutes, branchId || undefined);
 
     const created = await AppointmentRepository.create({
       doctorId: payload.doctorId,
@@ -164,6 +179,7 @@ export class AppointmentService {
       reason: payload.reason?.trim() || null,
       notes: payload.notes?.trim() || null,
       status: payload.status || "SCHEDULED",
+      branchId: branchId || null,
     });
 
     // Automated Notification
@@ -171,20 +187,22 @@ export class AppointmentService {
       title: "New Appointment Scheduled",
       message: `${patient.fullName} scheduled with Dr. ${doctor.fullName} on ${fullStartDateTime.toISOString().split("T")[0]} at ${startTimeStr}`,
       type: "appointment",
-    });
+      branchId: branchId || null,
+    } as any);
 
     return created;
   }
 
-  static async getById(id: string) {
+  static async getById(id: string, ctx?: any) {
     const appointment = await AppointmentRepository.findById(id);
     if (!appointment) {
       throw new AppError(404, "Appointment not found");
     }
+    await assertRecordTenant((appointment as any).branchId, ctx);
     return appointment;
   }
 
-  static async getAll(query: any) {
+  static async getAll(query: any, ctx?: any) {
     const page = Number(query.page) || 1;
     const limit = Number(query.limit) || 10;
     const search = query.search || query.searchTerm || query.q;
@@ -192,6 +210,44 @@ export class AppointmentService {
     const doctorId = query.doctorId;
     const patientId = query.patientId;
     const date = query.date;
+    const branchId = query.branchId;
+
+    let effectiveBranchId: string | undefined;
+    let effectiveBranchIds: string[] | undefined;
+    let branchAll: boolean | undefined;
+    if (ctx) {
+      branchAll = ctx.branchAll;
+      if (!ctx.branchAll && ctx.branchIds.length === 1) effectiveBranchId = ctx.branchIds[0];
+      else if (branchId) {
+        if (!ctx.branchAll && !ctx.branchIds.includes(branchId)) throw new AppError(403, "You are not assigned to that branch");
+        effectiveBranchId = branchId;
+      } else if (branchId === "all") {
+        effectiveBranchIds = ctx.branchIds;
+        branchAll = ctx.branchAll ? true : false;
+        if (!ctx.branchAll) effectiveBranchId = undefined as any;
+      } else {
+        effectiveBranchIds = ctx.branchIds;
+        branchAll = ctx.branchAll;
+        // For multi/all without explicit branch, allow aggregated but filtered to allowed branches
+        if (ctx.branchAll) effectiveBranchId = undefined as any;
+      }
+      if (ctx && !ctx.branchAll && ctx.branchIds.length === 1) {
+        effectiveBranchId = ctx.branchIds[0];
+        effectiveBranchIds = undefined;
+      } else if (branchId && branchId !== "all") {
+        effectiveBranchId = branchId;
+        effectiveBranchIds = undefined;
+      } else if (branchId === "all" && ctx && !ctx.branchAll) {
+        effectiveBranchId = undefined as any;
+        effectiveBranchIds = ctx.branchIds;
+        branchAll = false;
+      } else if (!branchId && ctx && (ctx.branchAll || ctx.branchIds.length > 1)) {
+        effectiveBranchId = undefined as any;
+        effectiveBranchIds = ctx.branchIds;
+      }
+    } else {
+      effectiveBranchId = branchId;
+    }
 
     return AppointmentRepository.getAll(
       page,
@@ -200,15 +256,20 @@ export class AppointmentService {
       status,
       doctorId,
       patientId,
-      date
+      date,
+      effectiveBranchId,
+      effectiveBranchIds,
+      branchAll,
+      ctx?.tenantId
     );
   }
 
-  static async update(id: string, payload: any) {
+  static async update(id: string, payload: any, ctx?: any) {
     const existing = await AppointmentRepository.findById(id);
     if (!existing) {
       throw new AppError(404, "Appointment not found");
     }
+    await assertRecordTenant((existing as any).branchId, ctx);
 
     if (existing.status === "COMPLETED") {
       throw new AppError(400, "Completed appointments are read-only and cannot be modified");
@@ -273,11 +334,12 @@ export class AppointmentService {
     return updated;
   }
 
-  static async cancel(id: string) {
+  static async cancel(id: string, ctx?: any) {
     const existing = await AppointmentRepository.findById(id);
     if (!existing) {
       throw new AppError(404, "Appointment not found");
     }
+    await assertRecordTenant((existing as any).branchId, ctx);
     if (existing.status === "COMPLETED") {
       throw new AppError(400, "Completed appointments cannot be cancelled");
     }
@@ -292,11 +354,12 @@ export class AppointmentService {
     return updated;
   }
 
-  static async checkIn(id: string) {
+  static async checkIn(id: string, ctx?: any) {
     const existing = await AppointmentRepository.findById(id);
     if (!existing) {
       throw new AppError(404, "Appointment not found");
     }
+    await assertRecordTenant((existing as any).branchId, ctx);
     if (existing.status === "COMPLETED" || existing.status === "CANCELLED") {
       throw new AppError(400, `Cannot check in an appointment with status ${existing.status}`);
     }
@@ -311,22 +374,24 @@ export class AppointmentService {
     return updated;
   }
 
-  static async complete(id: string) {
+  static async complete(id: string, ctx?: any) {
     const existing = await AppointmentRepository.findById(id);
     if (!existing) {
       throw new AppError(404, "Appointment not found");
     }
+    await assertRecordTenant((existing as any).branchId, ctx);
     if (existing.status === "CANCELLED") {
       throw new AppError(400, "Cannot complete a cancelled appointment");
     }
     return AppointmentRepository.update(id, { status: "COMPLETED" });
   }
 
-  static async noShow(id: string) {
+  static async noShow(id: string, ctx?: any) {
     const existing = await AppointmentRepository.findById(id);
     if (!existing) {
       throw new AppError(404, "Appointment not found");
     }
+    await assertRecordTenant((existing as any).branchId, ctx);
     if (existing.status === "COMPLETED") {
       throw new AppError(400, "Cannot mark a completed appointment as no-show");
     }
@@ -341,11 +406,12 @@ export class AppointmentService {
     return updated;
   }
 
-  static async delete(id: string) {
+  static async delete(id: string, ctx?: any) {
     const existing = await AppointmentRepository.findById(id);
     if (!existing) {
       throw new AppError(404, "Appointment not found");
     }
+    await assertRecordTenant((existing as any).branchId, ctx);
     return AppointmentRepository.delete(id);
   }
 }

@@ -14,11 +14,19 @@ function toDayStart(dateStr: string) {
 }
 
 export class ScheduleRepository {
-  async findAll(filters: { from?: string; to?: string; receptionistId?: string }) {
+  async findAll(filters: { from?: string; to?: string; receptionistId?: string; branchId?: string; branchIds?: string[]; branchAll?: boolean; tenantId?: string | null }) {
     const where: Record<string, unknown> = {};
 
     if (filters.receptionistId) {
       where.receptionistId = filters.receptionistId;
+    }
+
+    if ((filters as any).branchId) {
+      (where as any).branchId = (filters as any).branchId;
+    } else if (!(filters as any).branchAll && (filters as any).branchIds?.length) {
+      (where as any).branchId = { in: (filters as any).branchIds };
+    } else if ((filters as any).tenantId) {
+      (where as any).branch = { tenantId: (filters as any).tenantId };
     }
 
     if (filters.from || filters.to) {
@@ -67,6 +75,7 @@ export class ScheduleRepository {
     date: string;
     session: "MORNING" | "AFTERNOON";
     location?: string;
+    branchId?: string | null;
   }) {
     const times = SESSION_TIMES[data.session];
     return prisma.staffShift.create({
@@ -78,6 +87,7 @@ export class ScheduleRepository {
         endTime: times.end,
         location: data.location?.trim() || "Front Desk",
         status: "SCHEDULED",
+        branchId: (data as any).branchId || null,
       },
       include: {
         receptionist: {
@@ -136,14 +146,15 @@ export class ScheduleRepository {
     return prisma.staffShift.delete({ where: { id } });
   }
 
-  async findDuplicate(receptionistId: string, date: string, session: string, excludeId?: string) {
+  async findDuplicate(receptionistId: string, date: string, session: string, branchId?: string | null, excludeId?: string) {
     return prisma.staffShift.findFirst({
       where: {
         receptionistId,
+        branchId: branchId || undefined,
         date: toDayStart(date),
         session,
         ...(excludeId ? { NOT: { id: excludeId } } : {}),
-      },
+      } as any,
     });
   }
 }

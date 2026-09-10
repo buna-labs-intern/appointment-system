@@ -14,6 +14,8 @@ export const createUserSchema = z.object({
       .max(PASSWORD_MAX_LENGTH, "Password cannot exceed 64 characters"),
     role: z.enum(["ADMIN", "RECEPTIONIST"]).optional().default("RECEPTIONIST"),
     isActive: z.boolean().optional().default(true),
+    branchIds: z.array(z.string()).optional(),
+    branchId: z.string().optional(),
   }),
 });
 
@@ -28,5 +30,7 @@ export const updateUserSchema = z.object({
       .optional(),
     role: z.enum(["ADMIN", "RECEPTIONIST"]).optional(),
     isActive: z.boolean().optional(),
+    branchIds: z.array(z.string()).optional(),
+    branchId: z.string().optional().nullable(),
   }),
 });

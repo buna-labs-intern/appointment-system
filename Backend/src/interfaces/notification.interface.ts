@@ -13,7 +13,8 @@ export interface INotification {
 export interface ICreateNotificationPayload {
   title: string;
   message: string;
-  type?: NotificationType | string;
+  type?: string;
+  branchId?: string | null;
 }
 
 export interface INotificationQueryOptions {

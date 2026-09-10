@@ -6,7 +6,9 @@ const dashboardService = new DashboardService();
 
 class DashboardController {
   getDashboard = async (req: Request, res: Response) => {
-    const result = await dashboardService.getDashboardData();
+    const ctx = (req as any).branchContext ?? ((req as any).user ? { branchIds: (req as any).user.branchIds, branchAll: (req as any).user.branchAll, tenantId: (req as any).user.tenantId } : null);
+    const branchId = (req.query.branchId as string) || (ctx && !ctx.branchAll && ctx.branchIds.length === 1 ? ctx.branchIds[0] : undefined);
+    const result = await dashboardService.getDashboardData(branchId, ctx);
 
     sendResponse(res, {
       statusCode: 200,

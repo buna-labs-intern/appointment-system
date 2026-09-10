@@ -9,6 +9,7 @@ export class AppointmentRepository {
         doctor: true,
         patient: true,
         service: true,
+        branch: { select: { id: true, name: true, slug: true } } as any,
       },
     });
   }
@@ -49,10 +50,18 @@ export class AppointmentRepository {
     status?: string,
     doctorId?: string,
     patientId?: string,
-    date?: string
+    date?: string,
+    branchId?: string,
+    branchIds?: string[],
+    branchAll?: boolean,
+    tenantId?: string | null
   ) {
     const { skip, take } = calculatePagination(page, limit);
     const where: any = {};
+
+    if (branchId) where.branchId = branchId;
+    else if (!branchAll && branchIds?.length) where.branchId = { in: branchIds };
+    else if (tenantId) where.branch = { tenantId };
 
     if (status) {
       where.status = status;
@@ -144,7 +153,7 @@ export class AppointmentRepository {
     };
   }
 
-  async findDoctorAppointmentsOnDate(doctorId: string, date: Date, excludeId?: string) {
+  async findDoctorAppointmentsOnDate(doctorId: string, date: Date, branchId?: string, excludeId?: string) {
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
     const endOfDay = new Date(date);
@@ -153,6 +162,7 @@ export class AppointmentRepository {
     return prisma.appointment.findMany({
       where: {
         doctorId,
+        branchId: branchId || undefined,
         date: {
           gte: startOfDay,
           lte: endOfDay,
@@ -161,7 +171,7 @@ export class AppointmentRepository {
           not: "CANCELLED",
         },
         id: excludeId ? { not: excludeId } : undefined,
-      },
+      } as any,
       include: {
         service: true,
       },

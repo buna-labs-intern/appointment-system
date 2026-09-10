@@ -5,7 +5,8 @@ import { ServiceService } from "./service.service";
 export class ServiceController {
   static async create(req: Request, res: Response) {
     try {
-      const service = await ServiceService.create(req.body);
+      const ctx = (req as any).branchContext ?? ((req as any).user ? { branchIds: (req as any).user.branchIds, branchAll: (req as any).user.branchAll, tenantId: (req as any).user.tenantId } : null);
+      const service = await ServiceService.create(req.body, ctx);
       res.status(201).json({
         success: true,
         message: "Service created successfully",
@@ -21,7 +22,8 @@ export class ServiceController {
 
   static async getAll(req: Request, res: Response) {
     try {
-      const options = {
+      const ctx = (req as any).branchContext ?? ((req as any).user ? { branchIds: (req as any).user.branchIds, branchAll: (req as any).user.branchAll, tenantId: (req as any).user.tenantId } : null);
+      const options: any = {
         page: parseInt(req.query.page as string) || 1,
         limit: parseInt(req.query.limit as string) || 10,
         searchTerm: (req.query.searchTerm || req.query.search || req.query.q) as string,
@@ -29,7 +31,12 @@ export class ServiceController {
         sortOrder: req.query.sortOrder as 'asc' | 'desc',
         isActive: req.query.isActive === 'true' ? true : 
                   req.query.isActive === 'false' ? false : undefined,
+        branchId: req.query.branchId as string | undefined,
+        branchIds: ctx?.branchIds,
+        branchAll: ctx?.branchAll,
+        tenantId: ctx?.tenantId,
       };
+      if (ctx && !ctx.branchAll && ctx.branchIds.length === 1) options.branchId = ctx.branchIds[0];
 
       const result = await ServiceService.getAll(options);
       res.status(200).json({
@@ -48,7 +55,8 @@ export class ServiceController {
   static async getOne(req: Request, res: Response) {
     try {
       const { id } = req.params;
-      const service = await ServiceService.getById(id as string);
+      const ctx = (req as any).branchContext ?? ((req as any).user ? { branchIds: (req as any).user.branchIds, branchAll: (req as any).user.branchAll, tenantId: (req as any).user.tenantId } : null);
+      const service = await ServiceService.getById(id as string, ctx);
       res.status(200).json({
         success: true,
         data: service,
@@ -65,7 +73,8 @@ export class ServiceController {
   static async update(req: Request, res: Response) {
     try {
       const { id } = req.params;
-      const service = await ServiceService.update(id as string, req.body);
+      const ctx = (req as any).branchContext ?? ((req as any).user ? { branchIds: (req as any).user.branchIds, branchAll: (req as any).user.branchAll, tenantId: (req as any).user.tenantId } : null);
+      const service = await ServiceService.update(id as string, req.body, ctx);
       res.status(200).json({
         success: true,
         message: "Service updated successfully",
@@ -83,7 +92,8 @@ export class ServiceController {
   static async activate(req: Request, res: Response) {
     try {
       const { id } = req.params;
-      const service = await ServiceService.activate(id as string);
+      const ctx = (req as any).branchContext ?? ((req as any).user ? { branchIds: (req as any).user.branchIds, branchAll: (req as any).user.branchAll, tenantId: (req as any).user.tenantId } : null);
+      const service = await ServiceService.activate(id as string, ctx);
       res.status(200).json({
         success: true,
         message: "Service activated successfully",
@@ -101,7 +111,8 @@ export class ServiceController {
   static async deactivate(req: Request, res: Response) {
     try {
       const { id } = req.params;
-      const service = await ServiceService.deactivate(id as string);
+      const ctx = (req as any).branchContext ?? ((req as any).user ? { branchIds: (req as any).user.branchIds, branchAll: (req as any).user.branchAll, tenantId: (req as any).user.tenantId } : null);
+      const service = await ServiceService.deactivate(id as string, ctx);
       res.status(200).json({
         success: true,
         message: "Service deactivated successfully",
@@ -119,7 +130,8 @@ export class ServiceController {
   static async delete(req: Request, res: Response) {
     try {
       const { id } = req.params;
-      await ServiceService.delete(id as string);
+      const ctx = (req as any).branchContext ?? ((req as any).user ? { branchIds: (req as any).user.branchIds, branchAll: (req as any).user.branchAll, tenantId: (req as any).user.tenantId } : null);
+      await ServiceService.delete(id as string, ctx);
       res.status(200).json({
         success: true,
         message: "Service deleted successfully",

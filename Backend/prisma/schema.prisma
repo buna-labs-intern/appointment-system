@@ -9,19 +9,84 @@ datasource db {
 enum Role {
   ADMIN
   RECEPTIONIST
+  SUPER_ADMIN
+}
+
+model Tenant {
+  id              String    @id @default(cuid())
+  name            String
+  slug            String    @unique
+  phone           String?
+  address         String?
+  isActive        Boolean   @default(true)
+  blockedAt       DateTime?
+  blockedReason   String?
+  defaultBranchId String? @unique
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  branches      Branch[]
+  users         User[]
+  patients      Patient[]
+  defaultBranch Branch?   @relation("TenantDefaultBranch", fields: [defaultBranchId], references: [id], onDelete: SetNull)
+
+  @@index([isActive])
+}
+
+model Branch {
+  id            String   @id @default(cuid())
+  name          String
+  slug          String   @unique
+  address       String?
+  phone         String?
+  isActive      Boolean  @default(true)
+  blockedAt     DateTime?
+  blockedReason String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  doctors       Doctor[]
+  services      Service[]
+  appointments  Appointment[]
+  shifts        StaffShift[]
+  notifications Notification[]
+  userBranches  UserBranch[]
+  tenantId      String?
+  tenant        Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantDefaultFor Tenant? @relation("TenantDefaultBranch")
+
+  @@index([isActive])
+  @@index([tenantId])
+}
+
+model UserBranch {
+  userId     String
+  branchId   String
+  assignedAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@id([userId, branchId])
+  @@index([branchId])
 }
 
 model User {
-  id        String   @id @default(cuid())
-  fullName  String
-  email     String   @unique
-  password  String
-  role      Role     @default(RECEPTIONIST)
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  fullName           String
+  email              String   @unique
+  password           String
+  phone              String?
+  role               Role     @default(RECEPTIONIST)
+  isActive           Boolean  @default(true)
+  mustChangePassword Boolean  @default(false)
+  tenantId           String?
+  tenant             Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
-  shifts StaffShift[]
+  shifts       StaffShift[]
+  userBranches UserBranch[]
 }
 
 model Doctor {
@@ -30,10 +95,15 @@ model Doctor {
   specialty String
   phone     String
   isActive  Boolean  @default(true)
+  branchId  String?
+  branch    Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt @default(now())
 
   appointments Appointment[]
+
+  @@index([branchId])
+  @@index([branchId, isActive])
 }
 
 model Patient {
@@ -44,10 +114,14 @@ model Patient {
   birthDate DateTime
   address   String?
   notes     String?
+  tenantId  String?
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt @default(now())
 
   appointments Appointment[]
+
+  @@index([tenantId])
 }
 
 model Service {
@@ -57,10 +131,14 @@ model Service {
   price       Float    @default(0)
   duration    Int      @default(30)
   isActive    Boolean  @default(true)
+  branchId    String?
+  branch      Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt @default(now())
 
   appointments Appointment[]
+
+  @@index([branchId])
 }
 
 model Appointment {
@@ -74,6 +152,9 @@ model Appointment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt @default(now())
 
+  branchId  String?
+  branch    Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
+
   doctorId  String
   patientId String
   serviceId String
@@ -81,6 +162,10 @@ model Appointment {
   doctor  Doctor  @relation(fields: [doctorId], references: [id])
   patient Patient @relation(fields: [patientId], references: [id])
   service Service @relation(fields: [serviceId], references: [id])
+
+  @@index([branchId])
+  @@index([branchId, date])
+  @@index([branchId, doctorId, date])
 }
 
 model Notification {
@@ -89,8 +174,12 @@ model Notification {
   message   String
   type      String   @default("system")
   isRead    Boolean  @default(false)
+  branchId  String?
+  branch    Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt @default(now())
+
+  @@index([branchId])
 }
 
 model StaffShift {
@@ -102,11 +191,15 @@ model StaffShift {
   location       String   @default("Front Desk")
   status         String   @default("SCHEDULED")
   receptionistId String
+  branchId       String?
+  branch         Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt @default(now())
 
   receptionist User @relation(fields: [receptionistId], references: [id], onDelete: Cascade)
 
-  @@unique([receptionistId, date, session])
+  @@unique([branchId, receptionistId, date, session])
+  @@index([branchId])
+  @@index([branchId, date])
   @@index([date])
 }

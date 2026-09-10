@@ -82,20 +82,54 @@ The PostgreSQL database is structured with normalized relational entities:
 - **`Service`**: Clinic services with `name`, `description`, `price`, `duration`, and `isActive` status.
 - **`Appointment`**: Appointments linking patient, doctor, service, time slot, and lifecycle status.
 
-### Seed Data
-Run the database seed script to populate default administrative accounts, doctors, services, and patients:
+### Seeders
+
+Two idempotent scripts — re-running never duplicates rows:
+
+| Command | Script | What it seeds |
+| :--- | :--- | :--- |
+| `npm run prisma:seed` | `Backend/prisma/seed.ts` | Base data: initial clinic (**NexaCare** tenant + **Main Branch**, wired as the tenant's default branch), platform super admin, clinic users, services, doctors, patients |
+| `npm run seed:demo` | `seed.ts` **+** `Backend/prisma/demo-data.ts` | Base data **plus** demo appointments (today / upcoming / completed / cancelled), receptionist staff shifts, notifications, and a second clinic (**Hargeisa Medical Center**) with its own owner |
+
 ```bash
 cd Backend
-npm run prisma:seed
+npm run prisma:seed   # base data only
+npm run seed:demo     # base data + demo data (recommended for local testing)
 ```
 
+Clinics created through the API while testing can be wiped with:
+```bash
+cd Backend
+npx ts-node prisma/cleanup-test-tenants.ts
+```
+
+#### Seeded Data Details
+
+**Base seed (`prisma/seed.ts`):**
+- Tenant `NexaCare` (slug `nexacare`) + Branch `Main Branch` (slug `main-branch`) as the tenant's default branch.
+- 5 services: General Consultation, Follow-up Consultation, Pediatrics Consultation, Medical Certificate, Blood Pressure Check.
+- 3 doctors: Dr. Sara Ahmed, Dr. Mohamed Ali, Dr. Amina Yusuf *(inactive — useful for testing filters).*
+- 3 patients: Hassan Omar, Fadumo Abdi, Yusuf Ismail.
+
+**Demo seed (`prisma/demo-data.ts`, requires the base seed):**
+- 8 appointments for NexaCare: 3 today, 1 tomorrow, 3 completed in past days, 1 cancelled — so the dashboard is populated.
+- 2 staff shifts for the receptionist (today + tomorrow).
+- 3 notifications.
+- Second clinic `Hargeisa Medical Center` (own branch, doctor, service) with owner `owner@hmc.com`, seeded with the *must-change-password* flag set so the first-login flow can be tested.
+
 #### Default Credentials:
-- **Administrator:**
+- **Platform Super Admin** *(admin dashboard, `admin-frontend/`)*:
+  - **Email:** `super@nexacare.com`
+  - **Password:** `Super@12345`
+- **Administrator** *(NexaCare clinic)*:
   - **Email:** `admin@hospital.com`
   - **Password:** `Admin@12345`
 - **Receptionist:**
   - **Email:** `receptionist@hospital.com`
   - **Password:** `Reception@12345`
+- **Clinic Owner** *(Hargeisa Medical Center, demo-data seed only — forced password change on first login)*:
+  - **Email:** `owner@hmc.com`
+  - **Password:** `Owner@12345`
 
 ---
 
@@ -155,8 +189,11 @@ npm run prisma:generate
 # Push schema to database
 npx prisma db push
 
-# Seed initial admin, receptionist, doctors, and services
+# Seed base data (initial clinic, super admin, admin, receptionist, doctors, services, patients)
 npm run prisma:seed
+
+# Or seed base + demo data (appointments, shifts, notifications, second clinic) for local testing
+npm run seed:demo
 ```
 
 ### 2. Start the Backend Server

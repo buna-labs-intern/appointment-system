@@ -11,23 +11,29 @@ export class ServiceRepository {
         price: data.price !== undefined ? Number(data.price) : 0,
         duration: data.duration !== undefined ? Number(data.duration) : 30,
         isActive: data.isActive !== undefined ? data.isActive : true,
+        branchId: data.branchId || null,
       },
+      include: { branch: { select: { id: true, name: true, slug: true } } } as any,
     });
   }
 
-  async findAll(options?: SearchOptions & { isActive?: boolean }) {
+  async findAll(options?: SearchOptions & { isActive?: boolean; branchId?: string; branchIds?: string[]; branchAll?: boolean; tenantId?: string | null }) {
     if (!options) {
       return prisma.service.findMany({
         orderBy: { createdAt: "desc" },
+        include: { branch: { select: { id: true, name: true, slug: true } } } as any,
       });
     }
 
-    const { page, limit, sortBy, sortOrder, searchTerm, isActive } = options;
+    const { page, limit, sortBy, sortOrder, searchTerm, isActive, branchId, branchIds, branchAll, tenantId } = options as any;
     const { skip, take } = calculatePagination(page, limit);
 
     const searchCondition = generateSearchCondition(searchTerm, ["name", "description"]);
     const filterCondition: any = {};
     if (isActive !== undefined) filterCondition.isActive = isActive;
+    if (branchId) filterCondition.branchId = branchId;
+    else if (!branchAll && branchIds?.length) filterCondition.branchId = { in: branchIds };
+    else if (tenantId) filterCondition.branch = { tenantId };
 
     const where = {
       ...searchCondition,
@@ -76,14 +82,15 @@ export class ServiceRepository {
     });
   }
 
-  async findByName(name: string) {
+  async findByName(name: string, branchId?: string | null) {
     return prisma.service.findFirst({
       where: {
         name: {
           equals: name,
           mode: "insensitive",
         },
-      },
+        ...(branchId ? { branchId } : {}),
+      } as any,
     });
   }
 

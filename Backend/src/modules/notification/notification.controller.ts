@@ -14,7 +14,8 @@ export class NotificationController {
   };
 
   getAll = async (req: Request, res: Response) => {
-    const result = await NotificationService.getAll(req.query);
+    const ctx = (req as any).branchContext ?? ((req as any).user ? { branchIds: (req as any).user.branchIds, branchAll: (req as any).user.branchAll, tenantId: (req as any).user.tenantId } : null);
+    const result = await NotificationService.getAll(req.query, ctx);
     sendResponse(res, {
       statusCode: 200,
       success: true,
@@ -35,7 +36,8 @@ export class NotificationController {
   };
 
   markAsRead = async (req: Request, res: Response) => {
-    const result = await NotificationService.markAsRead(req.params.id as string);
+    const ctx = (req as any).branchContext ?? ((req as any).user ? { branchIds: (req as any).user.branchIds, branchAll: (req as any).user.branchAll, tenantId: (req as any).user.tenantId } : null);
+    const result = await NotificationService.markAsRead(req.params.id as string, ctx);
     sendResponse(res, {
       statusCode: 200,
       success: true,
@@ -55,7 +57,8 @@ export class NotificationController {
   };
 
   delete = async (req: Request, res: Response) => {
-    const result = await NotificationService.delete(req.params.id as string);
+    const ctx = (req as any).branchContext ?? ((req as any).user ? { branchIds: (req as any).user.branchIds, branchAll: (req as any).user.branchAll, tenantId: (req as any).user.tenantId } : null);
+    const result = await NotificationService.delete(req.params.id as string, ctx);
     sendResponse(res, {
       statusCode: 200,
       success: true,

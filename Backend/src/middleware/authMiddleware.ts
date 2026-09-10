@@ -3,12 +3,31 @@ import jwt from "jsonwebtoken";
 import AppError from "../utils/AppError";
 import prisma from "../shared/prisma";
 
+export interface BranchSummary {
+  id: string;
+  name: string;
+  slug: string;
+  isActive: boolean;
+}
+
 export interface AuthRequest extends Request {
   user?: {
     id: string;
     email: string;
-    role: "ADMIN" | "RECEPTIONIST";
+    role: "ADMIN" | "RECEPTIONIST" | "SUPER_ADMIN";
     fullName: string;
+    branchIds: string[];
+    branchAll: boolean;
+    branches: BranchSummary[];
+    tenantId: string | null;
+    tenantSlug: string | null;
+    tenantName: string | null;
+    mustChangePassword: boolean;
+  };
+  branchContext?: {
+    branchIds: string[];
+    branchAll: boolean;
+    tenantId: string | null;
   };
 }
 
@@ -34,7 +53,10 @@ export const authenticate = async (
     const decoded = jwt.verify(token, JWT_SECRET) as {
       id: string;
       email: string;
-      role: "ADMIN" | "RECEPTIONIST";
+      role: "ADMIN" | "RECEPTIONIST" | "SUPER_ADMIN";
+      branchIds?: string[];
+      branchAll?: boolean;
+      tenantId?: string | null;
     };
 
     const user = await prisma.user.findUnique({
@@ -45,6 +67,11 @@ export const authenticate = async (
         fullName: true,
         role: true,
         isActive: true,
+        mustChangePassword: true,
+        tenant: { select: { id: true, name: true, slug: true, isActive: true } },
+        userBranches: {
+          include: { branch: { select: { id: true, name: true, slug: true, isActive: true } } },
+        },
       },
     });
 
@@ -56,11 +83,41 @@ export const authenticate = async (
       throw new AppError(403, "Your account has been deactivated. Please contact an administrator.");
     }
 
+    if (user.tenant && !user.tenant.isActive) {
+      throw new AppError(403, "Clinic is banned. Contact platform administrator.");
+    }
+
+    const branchIds = user.userBranches.map((ub) => ub.branchId);
+    const branchAll = branchIds.length === 0;
+    const branches = user.userBranches
+      .map((ub) => ub.branch)
+      .filter(Boolean)
+      .map((b) => ({ id: b!.id, name: b!.name, slug: b!.slug, isActive: b!.isActive }));
+
+    if (!branchAll && branchIds.length === 1) {
+      const only = branches[0];
+      if (only && !only.isActive) {
+        throw new AppError(403, `Your branch "${only.name}" is archived. Contact administrator.`);
+      }
+    }
+
     req.user = {
       id: user.id,
       email: user.email,
-      role: user.role as "ADMIN" | "RECEPTIONIST",
+      role: user.role as "ADMIN" | "RECEPTIONIST" | "SUPER_ADMIN",
       fullName: user.fullName,
+      branchIds,
+      branchAll,
+      branches,
+      tenantId: user.tenant?.id ?? null,
+      tenantSlug: user.tenant?.slug ?? null,
+      tenantName: user.tenant?.name ?? null,
+      mustChangePassword: user.mustChangePassword,
+    };
+    (req as any).branchContext = {
+      branchIds,
+      branchAll,
+      tenantId: user.tenant?.id ?? null,
     };
 
     next();
@@ -73,7 +130,9 @@ export const authenticate = async (
   }
 };
 
-export const authorize = (...allowedRoles: ("ADMIN" | "RECEPTIONIST")[]) => {
+export const authorize = (
+  ...allowedRoles: ("ADMIN" | "RECEPTIONIST" | "SUPER_ADMIN")[]
+) => {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
     if (!req.user) {
       return next(new AppError(401, "You are not authenticated."));
@@ -87,4 +146,11 @@ export const authorize = (...allowedRoles: ("ADMIN" | "RECEPTIONIST")[]) => {
 
     next();
   };
+};
+
+export const forbidSuperAdmin = (req: AuthRequest, res: Response, next: NextFunction) => {
+  if (req.user?.role === "SUPER_ADMIN") {
+    return next(new AppError(403, "Platform administrators cannot access clinic data."));
+  }
+  next();
 };

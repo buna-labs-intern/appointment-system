@@ -10,23 +10,29 @@ export class DoctorRepository {
         specialty: data.specialty,
         phone: data.phone,
         isActive: data.isActive !== undefined ? data.isActive : true,
+        branchId: data.branchId || null,
       },
+      include: { branch: { select: { id: true, name: true, slug: true } } },
     });
   }
 
-  async findAll(options?: SearchOptions & { isActive?: boolean }) {
+  async findAll(options?: SearchOptions & { isActive?: boolean; branchId?: string; branchIds?: string[]; branchAll?: boolean; tenantId?: string | null }) {
     if (!options) {
       return prisma.doctor.findMany({
         orderBy: { createdAt: "desc" },
+        include: { branch: { select: { id: true, name: true, slug: true } } },
       });
     }
 
-    const { page, limit, sortBy, sortOrder, searchTerm, isActive } = options;
+    const { page, limit, sortBy, sortOrder, searchTerm, isActive, branchId, branchIds, branchAll, tenantId } = options as any;
     const { skip, take } = calculatePagination(page, limit);
 
     const searchCondition = generateSearchCondition(searchTerm, ["fullName", "specialty", "phone"]);
     const filterCondition: any = {};
     if (isActive !== undefined) filterCondition.isActive = isActive;
+    if (branchId) filterCondition.branchId = branchId;
+    else if (!branchAll && branchIds?.length) filterCondition.branchId = { in: branchIds };
+    else if (tenantId) filterCondition.branch = { tenantId };
 
     const where = {
       ...searchCondition,
@@ -46,6 +52,7 @@ export class DoctorRepository {
         skip,
         take,
         orderBy,
+        include: { branch: { select: { id: true, name: true, slug: true } } },
       }),
       prisma.doctor.count({ where }),
     ]);

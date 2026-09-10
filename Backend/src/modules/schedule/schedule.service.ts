@@ -1,12 +1,24 @@
 import AppError from "../../utils/AppError";
 import prisma from "../../shared/prisma";
 import { ScheduleRepository } from "./schedule.repository";
+import { resolveCreateBranchId, assertRecordTenant } from "../../utils/branchScope";
 
 const repository = new ScheduleRepository();
 
 export class ScheduleService {
-  static async getAll(query: { from?: string; to?: string; receptionistId?: string }) {
-    return repository.findAll(query);
+  static async getAll(query: { from?: string; to?: string; receptionistId?: string; branchId?: string }, ctx?: any) {
+    const effective: any = { ...query };
+    if (ctx && !ctx.branchAll && ctx.branchIds.length === 1) effective.branchId = ctx.branchIds[0];
+    else if (query.branchId) {
+      if (ctx && !ctx.branchAll && !ctx.branchIds.includes(query.branchId)) throw new AppError(403, "You are not assigned to that branch");
+      effective.branchId = query.branchId;
+    } else if (ctx && !ctx.branchAll && ctx.branchIds.length > 1) {
+      effective.branchIds = ctx.branchIds;
+      effective.branchAll = false;
+    } else if (ctx?.tenantId) {
+      effective.tenantId = ctx.tenantId;
+    }
+    return repository.findAll(effective);
   }
 
   static async getById(id: string) {
@@ -15,12 +27,18 @@ export class ScheduleService {
     return shift;
   }
 
+  static async resolveBranch(data: any, ctx?: any) {
+    return resolveCreateBranchId(data, ctx);
+  }
+
   static async create(data: {
     receptionistId: string;
     date: string;
     session: "MORNING" | "AFTERNOON";
     location?: string;
-  }) {
+    branchId?: string;
+  }, ctx?: any) {
+    const branchId = await this.resolveBranch(data, ctx);
     const user = await prisma.user.findUnique({ where: { id: data.receptionistId } });
     if (!user) throw new AppError(404, "Receptionist not found");
     if (!user.isActive) throw new AppError(400, "Cannot assign a shift to an inactive account");
@@ -38,6 +56,7 @@ export class ScheduleService {
       data.receptionistId,
       data.date,
       data.session,
+      branchId || undefined,
     );
     if (duplicate) {
       throw new AppError(
@@ -46,7 +65,7 @@ export class ScheduleService {
       );
     }
 
-    return repository.create(data);
+    return repository.create({ ...data, branchId });
   }
 
   static async update(
@@ -58,9 +77,11 @@ export class ScheduleService {
       location?: string;
       status?: string;
     },
+    ctx?: any,
   ) {
     const existing = await repository.findById(id);
     if (!existing) throw new AppError(404, "Shift not found");
+    await assertRecordTenant((existing as any).branchId, ctx);
 
     const receptionistId = data.receptionistId || existing.receptionistId;
     const date =
@@ -82,7 +103,7 @@ export class ScheduleService {
       }
     }
 
-    const duplicate = await repository.findDuplicate(receptionistId, date, session, id);
+    const duplicate = await repository.findDuplicate(receptionistId, date, session, (existing as any).branchId || undefined, id);
     if (duplicate) {
       throw new AppError(400, "That staff member already has this session on the selected date");
     }
@@ -90,9 +111,10 @@ export class ScheduleService {
     return repository.update(id, data);
   }
 
-  static async delete(id: string) {
+  static async delete(id: string, ctx?: any) {
     const existing = await repository.findById(id);
     if (!existing) throw new AppError(404, "Shift not found");
+    await assertRecordTenant((existing as any).branchId, ctx);
     await repository.delete(id);
     return { message: "Shift deleted successfully" };
   }
