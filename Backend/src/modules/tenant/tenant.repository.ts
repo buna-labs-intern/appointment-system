@@ -16,7 +16,25 @@ function slugify(value: string) {
 const tenantInclude = {
   _count: { select: { branches: true, users: true, patients: true } },
   defaultBranch: { select: { id: true, name: true, slug: true } },
+  users: {
+    where: { role: "ADMIN" },
+    select: { id: true, fullName: true, email: true, phone: true, isActive: true },
+    take: 3,
+    orderBy: { createdAt: "asc" as const },
+  },
 } as const;
+
+function pickPrimaryOwner(users: { id: string; fullName: string; email: string; phone: string | null; isActive: boolean }[] | undefined) {
+  if (!users || users.length === 0) return null;
+  return users.find((u) => u.isActive) ?? users[0];
+}
+
+function withOwner<T extends { users?: { id: string; fullName: string; email: string; phone: string | null; isActive: boolean }[] }>(
+  tenant: T,
+) {
+  const { users, ...rest } = tenant;
+  return { ...rest, owner: pickPrimaryOwner(users) };
+}
 
 export const TenantRepository = {
   slugify,
@@ -58,11 +76,12 @@ export const TenantRepository = {
       }),
     ]);
 
-    return { total, page, limit, items };
+    return { total, page, limit, items: items.map(withOwner) };
   },
 
   async findById(id: string) {
-    return prisma.tenant.findUnique({ where: { id }, include: tenantInclude });
+    const tenant = await prisma.tenant.findUnique({ where: { id }, include: tenantInclude });
+    return tenant ? withOwner(tenant) : tenant;
   },
 
   async findBySlug(slug: string) {
@@ -70,23 +89,27 @@ export const TenantRepository = {
   },
 
   async update(id: string, data: Prisma.TenantUpdateInput) {
-    return prisma.tenant.update({ where: { id }, data, include: tenantInclude });
+    return prisma.tenant.update({ where: { id }, data, include: tenantInclude }).then((t) => t && withOwner(t));
   },
 
   async block(id: string, reason?: string) {
-    return prisma.tenant.update({
-      where: { id },
-      data: { isActive: false, blockedAt: new Date(), blockedReason: reason ?? null },
-      include: tenantInclude,
-    });
+    return prisma.tenant
+      .update({
+        where: { id },
+        data: { isActive: false, blockedAt: new Date(), blockedReason: reason ?? null },
+        include: tenantInclude,
+      })
+      .then((t) => withOwner(t));
   },
 
   async unblock(id: string) {
-    return prisma.tenant.update({
-      where: { id },
-      data: { isActive: true, blockedAt: null, blockedReason: null },
-      include: tenantInclude,
-    });
+    return prisma.tenant
+      .update({
+        where: { id },
+        data: { isActive: true, blockedAt: null, blockedReason: null },
+        include: tenantInclude,
+      })
+      .then((t) => withOwner(t));
   },
 
   async delete(id: string) {

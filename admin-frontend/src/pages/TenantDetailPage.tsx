@@ -1,9 +1,14 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Mail, Phone, ShieldAlert } from 'lucide-react'
 import { tenantApi } from '@/features/tenants/tenantApi'
 import { extractApiError } from '@/lib/api'
+import Button from '@/components/ui/Button'
+import Card from '@/components/ui/Card'
+import Input from '@/components/ui/Input'
+import Modal from '@/components/ui/Modal'
+import StatusBadge from '@/components/ui/StatusBadge'
 
 export default function TenantDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -13,6 +18,8 @@ export default function TenantDetailPage() {
   const [editName, setEditName] = useState('')
   const [editPhone, setEditPhone] = useState('')
   const [editAddress, setEditAddress] = useState('')
+  const [banOpen, setBanOpen] = useState(false)
+  const [banReason, setBanReason] = useState('')
 
   const tenantQuery = useQuery({
     queryKey: ['tenant', id],
@@ -34,7 +41,11 @@ export default function TenantDetailPage() {
 
   const blockMutation = useMutation({
     mutationFn: ({ tid, reason }: { tid: string; reason?: string }) => tenantApi.block(tid, reason),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      setBanOpen(false)
+      setBanReason('')
+      invalidate()
+    },
     onError: (err: unknown) => setError(extractApiError(err)),
   })
 
@@ -61,211 +72,267 @@ export default function TenantDetailPage() {
   const tenant = tenantQuery.data
 
   if (tenantQuery.isLoading) {
-    return <p className="text-sm text-slate-500">Loading clinic...</p>
-  }
-
-  if (tenantQuery.isError || !tenant) {
     return (
-      <div className="rounded-xl bg-red-50 p-6 text-sm text-red-700">
-        Clinic not found or failed to load.{' '}
-        <Link to="/tenants" className="font-medium underline">
-          Back to list
-        </Link>
+      <div className="space-y-4">
+        <div className="skeleton h-8 w-64" />
+        <div className="skeleton h-40 w-full" />
+        <div className="skeleton h-64 w-full" />
       </div>
     )
   }
 
+  if (tenantQuery.isError || !tenant) {
+    return (
+      <Card className="p-6 text-sm text-danger">
+        Clinic not found or failed to load.{' '}
+        <Link to="/tenants" className="font-medium underline">
+          Back to list
+        </Link>
+      </Card>
+    )
+  }
+
+  const owner = tenant.owner
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <Link to="/tenants" className="mb-2 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700">
-            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-            All clinics
-          </Link>
-          <h1 className="flex items-center gap-3 text-xl font-bold text-slate-900">
-            {tenant.name}
-            <span
-              className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                tenant.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
-              }`}
-            >
-              {tenant.isActive ? 'Active' : 'Banned'}
-            </span>
-          </h1>
-          <p className="text-sm text-slate-500">
-            /{tenant.slug}
-            {tenant.defaultBranch ? ` · default branch: ${tenant.defaultBranch.name}` : ''}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              setEditName(tenant.name)
-              setEditPhone(tenant.phone ?? '')
-              setEditAddress(tenant.address ?? '')
-              setShowEdit((prev) => !prev)
-            }}
-            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-          >
-            Edit
-          </button>
-          {tenant.isActive ? (
-            <button
-              type="button"
+      <div className="animate-rise">
+        <Link
+          to="/tenants"
+          className="mb-3 inline-flex items-center gap-1.5 text-[13px] text-muted transition-colors hover:text-ink"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+          All clinics
+        </Link>
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h1 className="flex items-center gap-3 text-2xl font-semibold tracking-tight text-ink">
+              {tenant.name}
+              <StatusBadge tone={tenant.isActive ? 'success' : 'danger'} pulse={!tenant.isActive}>
+                {tenant.isActive ? 'Active' : 'Banned'}
+              </StatusBadge>
+            </h1>
+            <p className="mt-1 font-mono text-[13px] text-faint">
+              /{tenant.slug}
+              {tenant.defaultBranch ? (
+                <span className="font-sans text-muted"> · default branch: {tenant.defaultBranch.name}</span>
+              ) : null}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="soft"
               onClick={() => {
-                setError('')
-                const reason = window.prompt('Reason for banning this clinic (optional):') ?? undefined
-                blockMutation.mutate({ tid: tenant.id, reason: reason || undefined })
+                setEditName(tenant.name)
+                setEditPhone(tenant.phone ?? '')
+                setEditAddress(tenant.address ?? '')
+                setShowEdit((prev) => !prev)
               }}
-              className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-700"
             >
-              Ban clinic
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => {
-                setError('')
-                unblockMutation.mutate(tenant.id)
-              }}
-              className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-700"
-            >
-              Unban clinic
-            </button>
-          )}
+              Edit
+            </Button>
+            {tenant.isActive ? (
+              <Button
+                variant="danger"
+                onClick={() => {
+                  setError('')
+                  setBanReason('')
+                  setBanOpen(true)
+                }}
+              >
+                Ban clinic
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                loading={unblockMutation.isPending}
+                onClick={() => {
+                  setError('')
+                  unblockMutation.mutate(tenant.id)
+                }}
+              >
+                Unban clinic
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
       {tenant.blockedReason ? (
-        <p className="rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700">
-          Ban reason: {tenant.blockedReason}
-        </p>
+        <div className="animate-rise flex items-start gap-3 rounded-lg border border-red-200 bg-danger-soft px-4 py-3">
+          <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-danger" aria-hidden="true" />
+          <div className="text-[13px] text-danger">
+            <p className="font-medium">Clinic banned</p>
+            <p className="mt-0.5 text-danger/80">{tenant.blockedReason}</p>
+          </div>
+        </div>
       ) : null}
 
       {error ? (
-        <p className="rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700">{error}</p>
+        <div className="animate-rise rounded-lg border border-red-200 bg-danger-soft px-4 py-2.5 text-[13px] text-danger">
+          {error}
+        </div>
       ) : null}
 
       {showEdit ? (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault()
-            setError('')
-            updateMutation.mutate()
-          }}
-          className="grid gap-4 rounded-xl border border-slate-200 bg-white p-6 sm:grid-cols-3"
-        >
-          <div>
-            <label htmlFor="editName" className="mb-1 block text-sm font-medium text-slate-700">
-              Name
-            </label>
-            <input
+        <Card className="animate-rise p-6">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              setError('')
+              updateMutation.mutate()
+            }}
+            className="grid gap-4 sm:grid-cols-3"
+          >
+            <Input
               id="editName"
+              label="Name"
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0F5C66]"
             />
-          </div>
-          <div>
-            <label htmlFor="editPhone" className="mb-1 block text-sm font-medium text-slate-700">
-              Phone
-            </label>
-            <input
+            <Input
               id="editPhone"
+              label="Phone"
               value={editPhone}
               onChange={(e) => setEditPhone(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0F5C66]"
             />
-          </div>
-          <div>
-            <label htmlFor="editAddress" className="mb-1 block text-sm font-medium text-slate-700">
-              Address
-            </label>
-            <input
+            <Input
               id="editAddress"
+              label="Address"
               value={editAddress}
               onChange={(e) => setEditAddress(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0F5C66]"
             />
-          </div>
-          <div className="sm:col-span-3 flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setShowEdit(false)}
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={updateMutation.isPending}
-              className="rounded-lg bg-[#0F5C66] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-            >
-              {updateMutation.isPending ? 'Saving...' : 'Save changes'}
-            </button>
-          </div>
-        </form>
+            <div className="flex justify-end gap-2 sm:col-span-3">
+              <Button variant="soft" type="button" onClick={() => setShowEdit(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" loading={updateMutation.isPending}>
+                {updateMutation.isPending ? 'Saving...' : 'Save changes'}
+              </Button>
+            </div>
+          </form>
+        </Card>
       ) : (
-        <dl className="grid gap-4 rounded-xl border border-slate-200 bg-white p-6 sm:grid-cols-3">
-          <div>
-            <dt className="text-xs uppercase tracking-wide text-slate-400">Branches</dt>
-            <dd className="mt-1 text-lg font-semibold text-slate-900">{tenant._count?.branches ?? 0}</dd>
-          </div>
-          <div>
-            <dt className="text-xs uppercase tracking-wide text-slate-400">Users</dt>
-            <dd className="mt-1 text-lg font-semibold text-slate-900">{tenant._count?.users ?? 0}</dd>
-          </div>
-          <div>
-            <dt className="text-xs uppercase tracking-wide text-slate-400">Patients</dt>
-            <dd className="mt-1 text-lg font-semibold text-slate-900">{tenant._count?.patients ?? 0}</dd>
-          </div>
-          <div className="sm:col-span-3">
-            <dt className="text-xs uppercase tracking-wide text-slate-400">Contact</dt>
-            <dd className="mt-1 text-sm text-slate-600">
-              {tenant.phone ?? 'No phone'}
-              {tenant.address ? ` · ${tenant.address}` : ''}
-            </dd>
-          </div>
-        </dl>
+        <div className="grid gap-4 lg:grid-cols-3">
+          <Card className="animate-rise p-5">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Owner</p>
+            {owner ? (
+              <div className="mt-3 space-y-2">
+                <p className="font-medium text-ink">{owner.fullName}</p>
+                <p className="flex items-center gap-2 text-[13px] text-muted">
+                  <Mail className="h-3.5 w-3.5 text-faint" aria-hidden="true" />
+                  {owner.email}
+                </p>
+                {owner.phone ? (
+                  <p className="flex items-center gap-2 text-[13px] text-muted">
+                    <Phone className="h-3.5 w-3.5 text-faint" aria-hidden="true" />
+                    {owner.phone}
+                  </p>
+                ) : null}
+              </div>
+            ) : (
+              <p className="mt-3 text-[13px] text-faint">No owner account</p>
+            )}
+          </Card>
+
+          <Card className="animate-rise p-5">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Counts</p>
+            <dl className="mt-3 space-y-2.5">
+              {[
+                ['Branches', tenant._count?.branches ?? 0],
+                ['Users', tenant._count?.users ?? 0],
+                ['Patients', tenant._count?.patients ?? 0],
+              ].map(([label, value]) => (
+                <div key={label} className="flex items-center justify-between">
+                  <dt className="text-[13px] text-muted">{label}</dt>
+                  <dd className="tabular font-mono text-sm font-medium text-ink">{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </Card>
+
+          <Card className="animate-rise p-5">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Contact</p>
+            <div className="mt-3 space-y-2 text-[13px] text-muted">
+              <p className="flex items-center gap-2">
+                <Phone className="h-3.5 w-3.5 text-faint" aria-hidden="true" />
+                {tenant.phone ?? 'No phone'}
+              </p>
+              <p className="text-muted">{tenant.address ?? 'No address'}</p>
+            </div>
+          </Card>
+        </div>
       )}
 
-      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <h2 className="border-b border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700">
+      <Card className="animate-rise overflow-hidden">
+        <h2 className="border-b border-border px-5 py-3.5 text-[13px] font-semibold text-ink">
           Branches
         </h2>
         {branchesQuery.isLoading ? (
-          <p className="px-5 py-6 text-sm text-slate-500">Loading branches...</p>
+          <div className="space-y-3 px-5 py-5">
+            <div className="skeleton h-10 w-full" />
+            <div className="skeleton h-10 w-full" />
+          </div>
         ) : (branchesQuery.data ?? []).length === 0 ? (
-          <p className="px-5 py-6 text-sm text-slate-500">No branches yet.</p>
+          <p className="px-5 py-8 text-center text-[13px] text-muted">No branches yet.</p>
         ) : (
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y divide-border/70">
             {(branchesQuery.data ?? []).map((branch) => (
-              <li key={branch.id} className="flex items-center justify-between px-5 py-3">
+              <li key={branch.id} className="flex items-center justify-between px-5 py-4">
                 <div>
-                  <p className="text-sm font-medium text-slate-900">{branch.name}</p>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-sm font-medium text-ink">{branch.name}</p>
+                  <p className="mt-0.5 font-mono text-xs text-faint">
                     /{branch.slug}
-                    {branch.address ? ` · ${branch.address}` : ''}
+                    {branch.address ? <span className="font-sans"> · {branch.address}</span> : null}
                   </p>
                 </div>
-                <div className="flex items-center gap-4 text-xs text-slate-500">
-                  <span>{branch._count?.doctors ?? 0} doctors</span>
-                  <span>{branch._count?.appointments ?? 0} appointments</span>
-                  <span
-                    className={`rounded-full px-2 py-0.5 font-medium ${
-                      branch.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
-                    }`}
-                  >
-                    {branch.isActive ? 'Active' : 'Archived'}
+                <div className="flex items-center gap-5">
+                  <span className="tabular hidden font-mono text-xs text-muted sm:inline">
+                    {branch._count?.doctors ?? 0} doctors · {branch._count?.appointments ?? 0} appts
                   </span>
+                  <StatusBadge tone={branch.isActive ? 'success' : 'neutral'}>
+                    {branch.isActive ? 'Active' : 'Archived'}
+                  </StatusBadge>
                 </div>
               </li>
             ))}
           </ul>
         )}
-      </section>
+      </Card>
+
+      <Modal open={banOpen} title={tenant.name ? `Ban ${tenant.name}?` : 'Ban clinic'} onClose={() => setBanOpen(false)}>
+        <p className="text-[13px] leading-relaxed text-muted">
+          Every user of this clinic is signed out on their next request and cannot log in until
+          the clinic is unbanned.
+        </p>
+        <label htmlFor="detail-ban-reason" className="mb-1.5 mt-4 block text-[13px] font-medium text-ink">
+          Reason <span className="font-normal text-faint">(shown to platform admins)</span>
+        </label>
+        <textarea
+          id="detail-ban-reason"
+          value={banReason}
+          onChange={(e) => setBanReason(e.target.value)}
+          rows={3}
+          maxLength={300}
+          placeholder="e.g. Unpaid subscription, reported activity..."
+          className="w-full resize-none rounded-lg border border-border bg-white px-3 py-2 text-sm text-ink placeholder:text-faint focus:border-danger focus:ring-4 focus:ring-danger-ring focus:outline-none"
+        />
+        <div className="mt-5 flex justify-end gap-2">
+          <Button variant="soft" onClick={() => setBanOpen(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            loading={blockMutation.isPending}
+            onClick={() => {
+              if (!tenant) return
+              blockMutation.mutate({ tid: tenant.id, reason: banReason.trim() || undefined })
+            }}
+          >
+            Ban clinic
+          </Button>
+        </div>
+      </Modal>
     </div>
   )
 }

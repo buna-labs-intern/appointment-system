@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router'
 import { useMutation } from '@tanstack/react-query'
-import { isAxiosError } from 'axios'
+import { Building2 } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '@/app/store'
 import { setSession } from '@/features/auth/authSlice'
 import { loginRequest } from '@/features/auth/authApi'
@@ -11,6 +11,9 @@ type LoginForm = {
   email: string
   password: string
 }
+
+const inputClass =
+  'h-11 w-full rounded-lg border border-white/15 bg-white/8 px-3 text-sm text-white placeholder:text-emerald-100/35 transition-[border-color,box-shadow] focus:border-emerald-400/60 focus:bg-white/12 focus:ring-4 focus:ring-emerald-400/15 focus:outline-none'
 
 export default function LoginPage() {
   const dispatch = useAppDispatch()
@@ -43,22 +46,20 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="rounded-2xl bg-white p-8 shadow-xl shadow-slate-200">
+    <div className="animate-rise w-full max-w-md rounded-2xl border border-white/12 bg-white/8 p-8 shadow-modal backdrop-blur-xl">
       <div className="mb-8">
-        <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-[#0F5C66] text-white">
-          <svg viewBox="0 0 24 24" className="h-6 w-6 fill-white" aria-hidden="true">
-            <path d="M12 2l7 3v6c0 5-3.5 9.5-7 11-3.5-1.5-7-6-7-11V5l7-3zm0 5v4h-2v2h2v2h2v-2h2v-2h-2V7h-2z" />
-          </svg>
+        <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-b from-emerald-400 to-emerald-600 text-white shadow-lg shadow-emerald-900/40">
+          <Building2 className="h-6 w-6" aria-hidden="true" />
         </div>
-        <h1 className="text-xl font-bold text-slate-900">Platform Admin</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Manage clinics, owners and bans for the whole NexaCare platform.
+        <h1 className="text-xl font-semibold text-white">Platform Admin</h1>
+        <p className="mt-1 text-sm text-emerald-100/55">
+          Manage clinics, owners and bans for the whole platform.
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label htmlFor="email" className="mb-1 block text-sm font-medium text-slate-700">
+          <label htmlFor="email" className="mb-1.5 block text-[13px] font-medium text-emerald-50">
             Email
           </label>
           <input
@@ -68,13 +69,13 @@ export default function LoginPage() {
             autoComplete="email"
             value={form.email}
             onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0F5C66] focus:ring-2 focus:ring-[#0F5C66]/20"
+            className={inputClass}
             placeholder="super@nexacare.com"
           />
         </div>
 
         <div>
-          <label htmlFor="password" className="mb-1 block text-sm font-medium text-slate-700">
+          <label htmlFor="password" className="mb-1.5 block text-[13px] font-medium text-emerald-50">
             Password
           </label>
           <input
@@ -84,26 +85,34 @@ export default function LoginPage() {
             autoComplete="current-password"
             value={form.password}
             onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#0F5C66] focus:ring-2 focus:ring-[#0F5C66]/20"
+            className={inputClass}
             placeholder="••••••••"
           />
         </div>
 
-        {error ? <p className="text-sm text-red-600">{error}</p> : null}
-        {isAxiosError(mutation.error) && !error ? (
-          <p className="text-sm text-red-600">Unable to sign in.</p>
+        {error ? (
+          <p className="rounded-lg border border-red-400/25 bg-red-500/15 px-3 py-2 text-[13px] text-red-200">
+            {error}
+          </p>
+        ) : null}
+        {mutation.isError && !error ? (
+          <p className="rounded-lg border border-red-400/25 bg-red-500/15 px-3 py-2 text-[13px] text-red-200">
+            Unable to sign in.
+          </p>
         ) : null}
 
         <button
           type="submit"
           disabled={mutation.isPending}
-          className="w-full rounded-lg bg-[#0F5C66] py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#0C4B53] disabled:opacity-60"
+          className="accent-button h-11 w-full rounded-lg text-sm font-semibold text-white disabled:opacity-60"
         >
           {mutation.isPending ? 'Signing in...' : 'Sign in'}
         </button>
       </form>
 
-      <p className="mt-6 text-center text-xs text-slate-400">Authorized personnel only</p>
+      <p className="mt-6 text-center text-xs tracking-wide text-emerald-100/35">
+        Authorized personnel only
+      </p>
     </div>
   )
 }

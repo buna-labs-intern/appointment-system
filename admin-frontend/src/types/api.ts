@@ -15,6 +15,13 @@ export type Tenant = {
     users: number
     patients: number
   }
+  owner?: {
+    id: string
+    fullName: string
+    email: string
+    phone?: string | null
+    isActive: boolean
+  } | null
   defaultBranch?: {
     id: string
     name: string

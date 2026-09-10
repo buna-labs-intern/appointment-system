@@ -45,8 +45,9 @@ Acceptance:
 
 ## Task 2 — Show the clinic name (mostly free, verify only)
 
-Already wired: login response `tenant` → `authSlice.setTenant` → `TenantContext` →
-`Sidebar` + `ProfilePage` display `tenantName`.
+Already wired: login response `tenant` → `useAuth.login()` → `authSlice.setCredentials`
+(persists it to localStorage) → `TenantContext` → `Sidebar` + `ProfilePage` display
+`tenantName`.
 
 To verify: log in as the NexaCare admin — sidebar header must show **NexaCare**; log in
 as the HMC owner (after password change) — it must show **Hargeisa Medical Center**.
